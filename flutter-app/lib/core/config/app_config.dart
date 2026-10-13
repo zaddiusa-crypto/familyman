@@ -7,16 +7,12 @@ class AppConfig {
   // API Configuration
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: kReleaseMode
-        ? 'https://api.familyman.app/api/v1'
-        : 'http://10.0.2.2:8000/api/v1',
+    defaultValue: 'https://familyman-vdcc.onrender.com/api/v1',
   );
 
   static const String wsUrl = String.fromEnvironment(
     'WS_BASE_URL',
-    defaultValue: kReleaseMode
-        ? 'wss://api.familyman.app/ws'
-        : 'ws://10.0.2.2:8000/ws',
+    defaultValue: 'wss://familyman-vdcc.onrender.com/ws',
   );
 
   // Feature Flags

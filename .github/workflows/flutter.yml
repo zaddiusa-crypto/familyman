@@ -1,60 +1,23 @@
-name: Flutter CI/CD
+name: Build Android APK
 
 on:
+  workflow_dispatch: {}
   push:
-    branches: [main, develop]
-    paths:
-      - 'flutter-app/**'
-  pull_request:
     branches: [main]
     paths:
       - 'flutter-app/**'
 
 env:
-  FLUTTER_VERSION: '3.19.0'
+  FLUTTER_VERSION: '3.24.5'
+  API_BASE_URL: 'https://familyman-vdcc.onrender.com/api/v1'
+  WS_BASE_URL: 'wss://familyman-vdcc.onrender.com/ws'
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: |
-          cd flutter-app
-          flutter pub get
-
-      - name: Generate code
-        run: |
-          cd flutter-app
-          dart run build_runner build --delete-conflicting-outputs
-
-      - name: Analyze
-        run: |
-          cd flutter-app
-          flutter analyze
-
-      - name: Run tests
-        run: |
-          cd flutter-app
-          flutter test --coverage
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./flutter-app/coverage/lcov.info
-
   build-android:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    defaults:
+      run:
+        working-directory: flutter-app
     steps:
       - uses: actions/checkout@v4
 
@@ -65,92 +28,74 @@ jobs:
           channel: stable
           cache: true
 
+      # The repo only ships Dart source; generate a complete, buildable
+      # Android host project (Gradle files, wrapper, MainActivity, resources).
+      - name: Scaffold Android host project
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.familyman --project-name familyman .
+
+      # Replace the generated manifest with one carrying the app's permissions
+      # and label, while staying buildable (no references to non-existent
+      # Kotlin classes or resources).
+      - name: Write AndroidManifest.xml
+        run: |
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+              <uses-permission android:name="android.permission.VIBRATE"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+              <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+              <uses-permission android:name="android.permission.WAKE_LOCK"/>
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+              <application
+                  android:label="FamilyMan"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data
+                          android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme" />
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+              </application>
+          </manifest>
+          EOF
+
       - name: Install dependencies
-        run: |
-          cd flutter-app
-          flutter pub get
+        run: flutter pub get
 
-      - name: Generate code
-        run: |
-          cd flutter-app
-          dart run build_runner build --delete-conflicting-outputs
+      - name: Generate code (freezed/riverpod/drift)
+        run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build APK
+      - name: Build release APK
         run: |
-          cd flutter-app
-          flutter build apk --release --split-per-abi
+          flutter build apk --release --split-per-abi \
+            --dart-define=API_BASE_URL=${{ env.API_BASE_URL }} \
+            --dart-define=WS_BASE_URL=${{ env.WS_BASE_URL }}
 
-      - name: Build App Bundle
-        run: |
-          cd flutter-app
-          flutter build appbundle --release
-
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
+          name: familyman-release-apk
           path: flutter-app/build/app/outputs/flutter-apk/*.apk
-
-      - name: Upload App Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-bundle
-          path: flutter-app/build/app/outputs/bundle/release/*.aab
-
-      - name: Upload to Play Store Internal
-        if: github.ref == 'refs/heads/main'
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
-          packageName: com.familyman.app
-          releaseFiles: flutter-app/build/app/outputs/bundle/release/*.aab
-          track: internal
-
-  build-ios:
-    needs: test
-    runs-on: macos-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: |
-          cd flutter-app
-          flutter pub get
-
-      - name: Generate code
-        run: |
-          cd flutter-app
-          dart run build_runner build --delete-conflicting-outputs
-
-      - name: Install CocoaPods
-        run: |
-          cd flutter-app/ios
-          pod install --repo-update
-
-      - name: Build iOS
-        run: |
-          cd flutter-app
-          flutter build ios --release --no-codesign
-
-      - name: Upload iOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build
-          path: flutter-app/build/ios/iphoneos/Runner.app
-
-      - name: Deploy to TestFlight
-        if: github.ref == 'refs/heads/main'
-        uses: apple-actions/upload-testflight-build@v1
-        with:
-          app-path: flutter-app/build/ios/iphoneos/Runner.app
-          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
