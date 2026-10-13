@@ -7,6 +7,8 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import re
 import os
 import sys
+import asyncio
+import socket
 
 
 class Base(DeclarativeBase):
@@ -31,10 +33,46 @@ def validate_database_url(database_url: str) -> str:
     return database_url
 
 
+async def resolve_hostname(hostname: str, port: int = 5432) -> list[str]:
+    """Resolve hostname to IP addresses with retry logic."""
+    import aiodns
+    
+    resolver = aiodns.DNSResolver()
+    # Use Google's DNS as fallback
+    resolver.nameservers = ['8.8.8.8', '1.1.1.1', '208.67.222.222']
+    
+    try:
+        result = await resolver.query(hostname, 'A')
+        return [r.host for r in result]
+    except aiodns.error.DNSError as e:
+        print(f"DNS resolution failed for {hostname}: {e}", file=sys.stderr)
+        # Fallback to system resolver with retries
+        for attempt in range(3):
+            try:
+                loop = asyncio.get_event_loop()
+                addrs = await asyncio.get_event_loop().getaddrinfo(
+                    hostname, port, family=socket.AF_INET, type=socket.SOCK_STREAM
+                )
+                return [addr[4][0] for addr in addrs]
+            except (socket.gaierror, OSError) as e:
+                if attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                raise
+    return []
+
+
 def create_engine_with_ssl(database_url: str):
     """Create async engine with proper SSL configuration for asyncpg."""
     # Validate URL first
-    database_url = validate_database_url(database_url)
+    if not database_url:
+        raise ValueError(
+            "DATABASE_URL is not set. Please set the DATABASE_URL environment variable "
+            "in Render dashboard with a valid PostgreSQL connection string."
+        )
+    
+    if not database_url.startswith(("postgresql://", "postgresql+asyncpg://")):
+        raise ValueError("DATABASE_URL must start with postgresql:// or postgresql+asyncpg://")
     
     # Parse URL manually to handle postgresql+asyncpg driver
     parsed = urlparse(database_url)
@@ -43,7 +81,7 @@ def create_engine_with_ssl(database_url: str):
     if not parsed.hostname:
         raise ValueError(f"Invalid database URL: missing hostname in {database_url}")
     
-    print(f"Connecting to database host: {parsed.hostname}", file=sys.stderr)
+    print(f"Connecting to database host: {parsed.hostname}:{parsed.port or 5432}", file=sys.stderr)
     
     # Extract SSL parameters from query string
     query_params = parse_qs(parsed.query)
@@ -89,8 +127,6 @@ def create_engine_with_ssl(database_url: str):
     else:
         url_without_ssl = f"{scheme}{path_part}"
     
-    print(f"Connecting to: {url_without_ssl}", file=sys.stderr)
-    
     connect_args = {}
     if ssl_context:
         connect_args["ssl"] = ssl_context
@@ -101,6 +137,9 @@ def create_engine_with_ssl(database_url: str):
         poolclass=NullPool if settings.ENVIRONMENT == "test" else None,
         pool_pre_ping=True,
         connect_args=connect_args,
+        # Add connection retry logic
+        pool_recycle=3600,
+        pool_timeout=30,
     )
 
 
@@ -136,8 +175,22 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Add retry logic for database initialization
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            print("Database initialized successfully", file=sys.stderr)
+            return
+        except Exception as e:
+            if attempt < 4:
+                wait_time = 2 ** attempt
+                print(f"Database init failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s...", file=sys.stderr)
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"Failed to initialize database after {max_retries} attempts", file=sys.stderr)
+                raise
 
 
 async def close_db():
