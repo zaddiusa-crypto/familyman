@@ -129,8 +129,26 @@ async def run_async_migrations() -> None:
         connect_args=connect_args,
     )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    # Retry the connection: transient DNS/resolver hiccups (e.g. during a
+    # Supabase pooler cutover) must not fail the deploy on the first attempt.
+    # Migrations are transactional and alembic-stamped, so a retry is safe.
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            async with connectable.connect() as connection:
+                await connection.run_sync(do_run_migrations)
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(
+                    f"alembic migrate failed (attempt {attempt + 1}/{max_retries}): {e}. "
+                    f"Retrying in {wait}s...",
+                    file=sys.stderr,
+                )
+                await asyncio.sleep(wait)
+            else:
+                raise
 
     await connectable.dispose()
 
