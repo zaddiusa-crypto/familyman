@@ -85,6 +85,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Full syntax/type error list (build_runner truncates these).
+      - name: Analyze (diagnostics)
+        run: flutter analyze || true
+
       - name: Generate code (freezed/riverpod/drift)
         run: dart run build_runner build --delete-conflicting-outputs
 
