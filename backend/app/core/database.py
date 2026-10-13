@@ -5,6 +5,7 @@ from app.core.config import settings
 import ssl
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import re
+import os
 
 
 class Base(DeclarativeBase):
@@ -13,10 +14,32 @@ class Base(DeclarativeBase):
         return cls.__name__.lower()
 
 
+def validate_database_url(database_url: str) -> str:
+    """Validate and return the database URL."""
+    if not database_url:
+        raise ValueError(
+            "DATABASE_URL is not set. Please set the DATABASE_URL environment variable "
+            "in Render dashboard with a valid PostgreSQL connection string."
+        )
+    
+    # Basic validation
+    if not database_url.startswith(("postgresql://", "postgresql+asyncpg://")):
+        raise ValueError("DATABASE_URL must start with postgresql:// or postgresql+asyncpg://")
+    
+    return database_url
+
+
 def create_engine_with_ssl(database_url: str):
     """Create async engine with proper SSL configuration for asyncpg."""
+    # Validate URL first
+    database_url = validate_database_url(database_url)
+    
     # Parse URL manually to handle postgresql+asyncpg driver
     parsed = urlparse(database_url)
+    
+    # Validate hostname
+    if not parsed.hostname:
+        raise ValueError(f"Invalid database URL: missing hostname in {database_url}")
     
     # Extract SSL parameters from query string
     query_params = parse_qs(parsed.query)
@@ -41,7 +64,6 @@ def create_engine_with_ssl(database_url: str):
     query_string = urlencode(new_query) if new_query else ""
     
     # Reconstruct URL without sslmode - handle postgresql+asyncpg scheme
-    # Use regex to replace the query part while preserving the scheme
     scheme_end = database_url.find("://")
     if scheme_end == -1:
         raise ValueError("Invalid database URL")
