@@ -149,9 +149,13 @@ if not database_url:
     print("Please set DATABASE_URL in Render dashboard", file=sys.stderr)
     raise ValueError("DATABASE_URL is not set")
 
+# Handle case where Render sets the value as "DATABASE_URL=postgresql://..."
+if database_url.startswith("DATABASE_URL="):
+    database_url = database_url[len("DATABASE_URL="):]
+
 print(f"Using DATABASE_URL: {database_url[:50]}...", file=sys.stderr)
 
-engine = create_engine_with_ssl(settings.DATABASE_URL)
+engine = create_engine_with_ssl(database_url)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
