@@ -61,6 +61,8 @@ database_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
 if database_url:
     # Build URL without sslmode for sqlalchemy.url
     clean_url = build_database_url(database_url)
+    # Disable interpolation to avoid issues with % in password
+    config._interpolation = None
     config.set_main_option("sqlalchemy.url", clean_url)
 
 if config.config_file_name is not None:
