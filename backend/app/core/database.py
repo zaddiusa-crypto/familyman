@@ -6,6 +6,7 @@ import ssl
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import re
 import os
+import sys
 
 
 class Base(DeclarativeBase):
@@ -17,6 +18,7 @@ class Base(DeclarativeBase):
 def validate_database_url(database_url: str) -> str:
     """Validate and return the database URL."""
     if not database_url:
+        print("ERROR: DATABASE_URL is not set!", file=sys.stderr)
         raise ValueError(
             "DATABASE_URL is not set. Please set the DATABASE_URL environment variable "
             "in Render dashboard with a valid PostgreSQL connection string."
@@ -40,6 +42,8 @@ def create_engine_with_ssl(database_url: str):
     # Validate hostname
     if not parsed.hostname:
         raise ValueError(f"Invalid database URL: missing hostname in {database_url}")
+    
+    print(f"Connecting to database host: {parsed.hostname}", file=sys.stderr)
     
     # Extract SSL parameters from query string
     query_params = parse_qs(parsed.query)
@@ -85,6 +89,8 @@ def create_engine_with_ssl(database_url: str):
     else:
         url_without_ssl = f"{scheme}{path_part}"
     
+    print(f"Connecting to: {url_without_ssl}", file=sys.stderr)
+    
     connect_args = {}
     if ssl_context:
         connect_args["ssl"] = ssl_context
@@ -97,6 +103,15 @@ def create_engine_with_ssl(database_url: str):
         connect_args=connect_args,
     )
 
+
+# Get DATABASE_URL from environment with validation
+database_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
+if not database_url:
+    print("FATAL: DATABASE_URL environment variable is not set!", file=sys.stderr)
+    print("Please set DATABASE_URL in Render dashboard", file=sys.stderr)
+    raise ValueError("DATABASE_URL is not set")
+
+print(f"Using DATABASE_URL: {database_url[:50]}...", file=sys.stderr)
 
 engine = create_engine_with_ssl(settings.DATABASE_URL)
 
