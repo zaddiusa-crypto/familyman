@@ -65,8 +65,10 @@ if database_url:
     # Handle case where Render sets the value as "DATABASE_URL=postgresql://..."
     if database_url.startswith("DATABASE_URL="):
         database_url = database_url[len("DATABASE_URL="):]
-    # Disable interpolation BEFORE setting the option to avoid % interpolation issues
+    # Disable interpolation on BOTH config and underlying ConfigParser BEFORE setting URL
     config._interpolation = None
+    if config.file_config is not None:
+        config.file_config._interpolation = None
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
