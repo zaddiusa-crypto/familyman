@@ -19,17 +19,33 @@ class Base(DeclarativeBase):
 
 
 def _resolve_database_url() -> str:
-    """Resolve the database URL from env, falling back to embedded SQLite."""
-    url = os.getenv("DATABASE_URL") or os.getenv("SQLITE_PATH") or settings.DATABASE_URL
-    if not url:
-        return DEFAULT_DATABASE_URL
-    # Handle a Render-style "DATABASE_URL=postgresql://..." value.
-    if url.startswith("DATABASE_URL="):
-        url = url[len("DATABASE_URL=") :]
-    # A bare filesystem path (from SQLITE_PATH) needs the aiosqlite scheme.
-    if not url.startswith(("sqlite", "postgresql", "postgres")):
-        url = f"sqlite+aiosqlite:///{url}"
-    return url
+    """Resolve the database URL, ignoring deprecated Postgres values.
+
+    Postgres support was removed (no asyncpg/psycopg driver is installed), so any
+    leftover postgres:// URL in the environment is skipped in favour of embedded
+    SQLite instead of crashing on a missing driver.
+    """
+    candidates = (
+        os.getenv("DATABASE_URL"),
+        os.getenv("SQLITE_PATH"),
+        settings.DATABASE_URL,
+    )
+    for raw in candidates:
+        if not raw:
+            continue
+        url = raw
+        # Handle a Render-style "DATABASE_URL=postgresql://..." value.
+        if url.startswith("DATABASE_URL="):
+            url = url[len("DATABASE_URL=") :]
+        # Catches postgres://, postgresql://, postgresql+asyncpg://, etc.
+        if url.startswith("postgres"):
+            print("Ignoring deprecated Postgres DATABASE_URL; using SQLite.", flush=True)
+            continue
+        # A bare filesystem path (from SQLITE_PATH) needs the aiosqlite scheme.
+        if not url.startswith("sqlite"):
+            url = f"sqlite+aiosqlite:///{url}"
+        return url
+    return DEFAULT_DATABASE_URL
 
 
 database_url = _resolve_database_url()
