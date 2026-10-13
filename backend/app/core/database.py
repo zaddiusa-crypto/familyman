@@ -47,7 +47,7 @@ def create_engine_with_ssl(database_url: str):
     if ssl_context:
         connect_args["ssl"] = ssl_context
     
-return create_async_engine(
+    return create_async_engine(
         url_without_ssl,
         echo=settings.DEBUG,
         poolclass=NullPool if settings.ENVIRONMENT == "test" else None,
