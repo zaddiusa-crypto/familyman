@@ -124,8 +124,8 @@ def do_run_migrations(connection: Connection) -> None:
         context.run_migrations()
 
 
-async def run_migrations_online() -> None:
-    await run_async_migrations()
+def run_migrations_online() -> None:
+    asyncio.run(run_async_migrations())
 
 
 # Always run online migrations (Render has DB connectivity)
