@@ -1,7 +1,10 @@
 from enum import Enum
 from functools import wraps
 from typing import Set
+from fastapi import Depends, HTTPException, status
 from app.core.models import RoleEnum
+from app.modules.auth.dependencies import get_current_user
+from app.core.models import User
 
 
 class Permission(str, Enum):
@@ -51,10 +54,7 @@ def has_permission(role: str, permission: Permission) -> bool:
 
 
 def require_permission(permission: Permission):
-    from fastapi import Depends, HTTPException, status
-    from app.modules.auth.dependencies import get_current_user
-    from app.core.models import User
-
+    """Dependency that checks if current user has the required permission."""
     async def _check(current_user: User = Depends(get_current_user)):
         if not has_permission(current_user.role.value, permission):
             raise HTTPException(
@@ -62,14 +62,11 @@ def require_permission(permission: Permission):
                 detail=f"Permission '{permission.value}' required"
             )
         return current_user
-    return Depends(_check)
+    return _check
 
 
 def require_role(*roles: str):
-    from fastapi import Depends, HTTPException, status
-    from app.modules.auth.dependencies import get_current_user
-    from app.core.models import User
-
+    """Dependency that checks if current user has one of the required roles."""
     async def _check(current_user: User = Depends(get_current_user)):
         if current_user.role.value not in roles:
             raise HTTPException(
@@ -77,4 +74,4 @@ def require_role(*roles: str):
                 detail=f"Role {' or '.join(roles)} required"
             )
         return current_user
-    return Depends(_check)
+    return _check
