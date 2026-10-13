@@ -4,6 +4,7 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 import ssl
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+import re
 
 
 class Base(DeclarativeBase):
@@ -39,9 +40,28 @@ def create_engine_with_ssl(database_url: str):
     new_query = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
     query_string = urlencode(new_query) if new_query else ""
     
+    # Reconstruct URL without sslmode - handle postgresql+asyncpg scheme
+    # Use regex to replace the query part while preserving the scheme
+    scheme_end = database_url.find("://")
+    if scheme_end == -1:
+        raise ValueError("Invalid database URL")
+    
+    scheme = database_url[:scheme_end + 3]  # includes "://"
+    rest = database_url[scheme_end + 3:]
+    
+    # Split path and query
+    if "?" in rest:
+        path_part, query_part = rest.split("?", 1)
+    else:
+        path_part = rest
+        query_part = ""
+    
     # Reconstruct URL without sslmode
-    new_parsed = parsed._replace(query=query_string)
-    url_without_ssl = urlunparse(new_parsed)
+    new_query = query_string
+    if new_query:
+        url_without_ssl = f"{scheme}{path_part}?{query_string}"
+    else:
+        url_without_ssl = f"{scheme}{path_part}"
     
     connect_args = {}
     if ssl_context:
