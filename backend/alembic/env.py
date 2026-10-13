@@ -64,9 +64,9 @@ if database_url:
         database_url = database_url[len("DATABASE_URL="):]
     # Build URL without sslmode for sqlalchemy.url
     clean_url = build_database_url(database_url)
-    # Disable interpolation to avoid issues with % in password
+    # Disable interpolation BEFORE setting the option to avoid % interpolation issues
     config._interpolation = None
-    config.set_main_option("sqlalchemy.url", clean_url)
+    config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
