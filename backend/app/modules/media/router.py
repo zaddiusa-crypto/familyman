@@ -10,6 +10,7 @@ import os
 from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceError
+from app.core.models import User
 
 
 router = APIRouter(prefix="/media", tags=["Media"])
