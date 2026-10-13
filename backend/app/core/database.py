@@ -1,14 +1,15 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+import asyncio
+import os
+import socket
+import ssl
+import sys
+from urllib.parse import parse_qs, urlencode, urlparse
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 from sqlalchemy.pool import NullPool
+
 from app.core.config import settings
-import ssl
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-import re
-import os
-import sys
-import asyncio
-import socket
 
 
 class Base(DeclarativeBase):
@@ -31,7 +32,7 @@ async def resolve_hostname(hostname: str, port: int = 5432) -> list[str]:
         pass  # aiodns not available, fall back to system resolver
     except Exception as e:
         print(f"aiodns resolution failed for {hostname}: {e}", file=sys.stderr)
-    
+
     # Fallback to system resolver with retries
     for attempt in range(5):
         try:
@@ -60,33 +61,23 @@ def create_engine_with_ssl(database_url: str):
             "DATABASE_URL is not set. Please set the DATABASE_URL environment variable "
             "in Render dashboard with a valid PostgreSQL connection string."
         )
-    
+
     if not database_url.startswith(("postgresql://", "postgresql+asyncpg://")):
         raise ValueError("DATABASE_URL must start with postgresql:// or postgresql+asyncpg://")
-    
+
     # Parse URL manually to handle postgresql+asyncpg driver
     parsed = urlparse(database_url)
-    
+
     # Validate hostname
     if not parsed.hostname:
         raise ValueError(f"Invalid database URL: missing hostname in {database_url}")
-    
+
     print(f"Connecting to database host: {parsed.hostname}:{parsed.port or 5432}", file=sys.stderr)
-    
-    # Try to resolve hostname with retries
-    try:
-        ips = asyncio.run(resolve_hostname(parsed.hostname, parsed.port or 5432))
-        if ips:
-            # Use the first resolved IP for connection
-            print(f"Resolved {parsed.hostname} to: {ips}", file=sys.stderr)
-    except Exception as e:
-        print(f"WARNING: Could not pre-resolve {parsed.hostname}: {e}", file=sys.stderr)
-        print("Attempting connection anyway...", file=sys.stderr)
-    
+
     # Extract SSL parameters from query string
     query_params = parse_qs(parsed.query)
     sslmode = query_params.pop("sslmode", [None])[0]
-    
+
     # Create SSL context if needed
     ssl_context = None
     if sslmode in ("require", "verify-ca", "verify-full"):
@@ -100,37 +91,37 @@ def create_engine_with_ssl(database_url: str):
         else:  # require
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
-    
+
     # Rebuild query string without sslmode
     new_query = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
     query_string = urlencode(new_query) if new_query else ""
-    
+
     # Reconstruct URL without sslmode - handle postgresql+asyncpg scheme
     scheme_end = database_url.find("://")
     if scheme_end == -1:
         raise ValueError("Invalid database URL")
-    
+
     scheme = database_url[:scheme_end + 3]  # includes "://"
     rest = database_url[scheme_end + 3:]
-    
+
     # Split path and query
     if "?" in rest:
         path_part, query_part = rest.split("?", 1)
     else:
         path_part = rest
         query_part = ""
-    
+
     # Reconstruct URL without sslmode
     new_query = query_string
     if new_query:
         url_without_ssl = f"{scheme}{path_part}?{query_string}"
     else:
         url_without_ssl = f"{scheme}{path_part}"
-    
+
     connect_args = {}
     if ssl_context:
         connect_args["ssl"] = ssl_context
-    
+
     return create_async_engine(
         url_without_ssl,
         echo=settings.DEBUG,
@@ -153,7 +144,12 @@ if not database_url:
 if database_url.startswith("DATABASE_URL="):
     database_url = database_url[len("DATABASE_URL="):]
 
-print(f"Using DATABASE_URL: {database_url[:50]}...", file=sys.stderr)
+# Redact credentials before logging
+_safe_url = urlparse(database_url)
+print(
+    f"Using DATABASE_URL host: {_safe_url.hostname}:{_safe_url.port or 5432}",
+    file=sys.stderr,
+)
 
 engine = create_engine_with_ssl(database_url)
 
@@ -200,7 +196,9 @@ async def close_db():
     await engine.dispose()
 
 
-# Tenant context middleware
+# Tenant context helper (parameterized to prevent SQL injection)
 def set_tenant_context(lodge_id: str):
     from sqlalchemy import text
-    return text(f"SET LOCAL app.current_lodge_id = '{lodge_id}'")
+    return text(
+        "SELECT set_config('app.current_lodge_id', :lodge_id, true)"
+    ).bindparams(lodge_id=str(lodge_id))

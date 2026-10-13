@@ -1,6 +1,5 @@
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -8,9 +7,9 @@ class BroadcastCreate(BaseModel):
     title: str
     body: str
     data: dict = {}
-    target_roles: List[str] = ["member"]
+    target_roles: list[str] = ["member"]
     priority: str = "normal"
-    scheduled_at: Optional[datetime] = None
+    scheduled_at: datetime | None = None
 
 
 class BroadcastResponse(BaseModel):
@@ -18,12 +17,12 @@ class BroadcastResponse(BaseModel):
     title: str
     body: str
     data: dict
-    target_roles: List[str]
+    target_roles: list[str]
     priority: str
     status: str
     sent_count: int
     failed_count: int
-    sent_at: Optional[datetime]
+    sent_at: datetime | None
     created_at: datetime
 
     class Config:

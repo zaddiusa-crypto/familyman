@@ -1,16 +1,14 @@
-from typing import Optional, List
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
 
-from app.modules.lodges.schemas import LodgeCreate, LodgeUpdate, LodgeResponse, LodgeListResponse
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import Lodge, User, RoleEnum
-from app.core.rbac import require_permission, require_role
-from app.core.exceptions import NotFoundError, ConflictError
-
+from app.core.exceptions import ConflictError
+from app.core.models import Lodge, User
+from app.core.rbac import require_role
+from app.modules.auth.dependencies import get_db
+from app.modules.lodges.schemas import LodgeCreate, LodgeUpdate
 
 router = APIRouter(prefix="/lodges", tags=["Lodges"])
 
@@ -19,7 +17,7 @@ router = APIRouter(prefix="/lodges", tags=["Lodges"])
 async def list_lodges(
     page: int = 1,
     limit: int = 20,
-    search: Optional[str] = None,
+    search: str | None = None,
     current_user: User = Depends(require_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -89,7 +87,7 @@ async def create_lodge(
     try:
         await db.commit()
         await db.refresh(lodge)
-    except Exception as e:
+    except Exception:
         await db.rollback()
         raise ConflictError("Lodge code already exists")
 
@@ -102,7 +100,6 @@ async def get_lodge(
     current_user: User = Depends(require_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     result = await db.execute(
@@ -139,7 +136,6 @@ async def update_lodge(
     current_user: User = Depends(require_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     result = await db.execute(
@@ -168,7 +164,6 @@ async def delete_lodge(
     current_user: User = Depends(require_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     result = await db.execute(
@@ -198,7 +193,6 @@ async def list_lodge_users(
     current_user: User = Depends(require_role("super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     result = await db.execute(select(Lodge).where(Lodge.id == UUID(lodge_id)))

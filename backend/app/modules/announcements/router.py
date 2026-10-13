@@ -1,17 +1,13 @@
-from typing import Optional, List
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 
-from app.modules.announcements.schemas import AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import Announcement, User, RoleEnum
-from app.core.rbac import require_permission
-from app.core.exceptions import NotFoundError
-
+from app.core.models import Announcement, User
+from app.modules.auth.dependencies import get_current_active_user, get_db
 
 router = APIRouter(prefix="/announcements", tags=["Announcements"])
 
@@ -20,7 +16,7 @@ router = APIRouter(prefix="/announcements", tags=["Announcements"])
 async def list_announcements(
     page: int = 1,
     limit: int = 20,
-    search: Optional[str] = None,
+    search: str | None = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -94,7 +90,7 @@ async def create_announcement(
         target_roles=data.get("target_roles", ["member"]),
         is_published=data.get("is_published", True),
         expires_at=data.get("expires_at"),
-        published_at=datetime.now(timezone.utc) if data.get("is_published", True) else None,
+        published_at=datetime.now(UTC) if data.get("is_published", True) else None,
     )
     db.add(announcement)
     await db.commit()
@@ -109,7 +105,6 @@ async def get_announcement(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     result = await db.execute(
@@ -150,7 +145,6 @@ async def update_announcement(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
@@ -169,7 +163,7 @@ async def update_announcement(
     for key, value in data.items():
         if hasattr(announcement, key) and value is not None:
             if key == "is_published" and value is True and not announcement.published_at:
-                value = datetime.now(timezone.utc)
+                value = datetime.now(UTC)
             setattr(announcement, key, value)
 
     await db.commit()
@@ -184,7 +178,6 @@ async def delete_announcement(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:

@@ -1,5 +1,5 @@
+
 from fastapi import HTTPException, status
-from typing import Any, Optional
 
 
 class AppException(HTTPException):
@@ -8,7 +8,7 @@ class AppException(HTTPException):
         status_code: int,
         detail: str,
         error_code: str = "ERROR",
-        headers: Optional[dict] = None,
+        headers: dict | None = None,
     ):
         super().__init__(status_code=status_code, detail=detail, headers=headers)
         self.error_code = error_code

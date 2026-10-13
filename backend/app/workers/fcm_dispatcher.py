@@ -1,15 +1,12 @@
 import asyncio
-import httpx
-import json
 import logging
-from datetime import datetime, timezone
-from uuid import UUID
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import AsyncSessionLocal
+import httpx
+from sqlalchemy import select, update
+
 from app.core.config import settings
-from app.core.models import Notification, User, NotificationPriorityEnum
+from app.core.database import AsyncSessionLocal
+from app.core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -59,18 +56,19 @@ class FCMDispatcher:
                     }
                 },
             }
+        }
 
-            async with httpx.AsyncClient() as client:
-                try:
-                    resp = await client.post(self.fcm_url, json=payload, headers=headers, timeout=10)
-                    if resp.status_code == 200:
-                        return True
-                    else:
-                        logger.error(f"FCM send failed: {resp.status_code} - {resp.text}")
-                        return False
-                except Exception as e:
-                    logger.error(f"FCM send error: {e}")
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(self.fcm_url, json=payload, headers=headers, timeout=10)
+                if resp.status_code == 200:
+                    return True
+                else:
+                    logger.error(f"FCM send failed: {resp.status_code} - {resp.text}")
                     return False
+            except Exception as e:
+                logger.error(f"FCM send error: {e}")
+                return False
 
     async def _get_access_token(self) -> str:
         # TODO: Implement OAuth2 token generation from service account

@@ -1,12 +1,10 @@
 import asyncio
-import httpx
 import logging
-from datetime import datetime, timezone
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import httpx
+from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
-from app.core.config import settings
 from app.core.models import FeeSchedule, Lodge
 
 logger = logging.getLogger(__name__)
@@ -29,7 +27,7 @@ async def update_currency_rates():
                 try:
                     async with httpx.AsyncClient() as client:
                         resp = await client.get(
-                            f"https://open.er-api.com/v6/latest/USD",
+                            "https://open.er-api.com/v6/latest/USD",
                             timeout=10
                         )
                         if resp.status_code != 200:

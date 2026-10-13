@@ -1,7 +1,7 @@
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
+
 from pydantic import BaseModel
+
 from app.core.models import NotificationPriorityEnum
 
 
@@ -15,7 +15,7 @@ class NotificationBase(BaseModel):
 
 class NotificationCreate(NotificationBase):
     user_id: str
-    target_roles: Optional[List[str]] = None
+    target_roles: list[str] | None = None
 
 
 class NotificationResponse(BaseModel):
@@ -26,8 +26,8 @@ class NotificationResponse(BaseModel):
     data: dict
     priority: NotificationPriorityEnum
     is_read: bool
-    read_at: Optional[datetime]
-    sent_via: List[str]
+    read_at: datetime | None
+    sent_via: list[str]
     created_at: datetime
 
     class Config:
@@ -35,11 +35,11 @@ class NotificationResponse(BaseModel):
 
 
 class NotificationUpdate(BaseModel):
-    is_read: Optional[bool] = None
+    is_read: bool | None = None
 
 
 class NotificationListResponse(BaseModel):
-    items: List[dict]
+    items: list[dict]
     total: int
     page: int
     limit: int

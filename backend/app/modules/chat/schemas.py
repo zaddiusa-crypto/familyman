@@ -1,55 +1,55 @@
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
+
 from pydantic import BaseModel
-from app.core.models import MessageStatusEnum, MediaTypeEnum
+
+from app.core.models import MediaTypeEnum, MessageStatusEnum
 
 
 class ChatBase(BaseModel):
-    subject: Optional[str] = None
+    subject: str | None = None
 
 
 class ChatCreate(BaseModel):
     member_id: str
-    subject: Optional[str] = None
+    subject: str | None = None
 
 
 class ChatUpdate(BaseModel):
-    subject: Optional[str] = None
-    is_archived: Optional[bool] = None
+    subject: str | None = None
+    is_archived: bool | None = None
 
 
 class MessageBase(BaseModel):
-    content: Optional[str] = None
-    media_url: Optional[str] = None
-    media_type: Optional[MediaTypeEnum] = None
-    reply_to_id: Optional[str] = None
+    content: str | None = None
+    media_url: str | None = None
+    media_type: MediaTypeEnum | None = None
+    reply_to_id: str | None = None
 
 
 class MessageCreate(BaseModel):
-    content: Optional[str] = None
-    media_url: Optional[str] = None
-    media_type: Optional[MediaTypeEnum] = None
-    reply_to_id: Optional[str] = None
+    content: str | None = None
+    media_url: str | None = None
+    media_type: MediaTypeEnum | None = None
+    reply_to_id: str | None = None
 
 
 class MessageUpdate(BaseModel):
-    content: Optional[str] = None
-    is_deleted: Optional[bool] = None
-    deleted_for: Optional[List[str]] = None
+    content: str | None = None
+    is_deleted: bool | None = None
+    deleted_for: list[str] | None = None
 
 
 class MessageResponse(BaseModel):
     id: str
     chat_id: str
     sender_id: str
-    content: Optional[str]
-    media_url: Optional[str]
-    media_type: Optional[MediaTypeEnum]
-    reply_to_id: Optional[str]
+    content: str | None
+    media_url: str | None
+    media_type: MediaTypeEnum | None
+    reply_to_id: str | None
     status: MessageStatusEnum
     is_deleted: bool
-    deleted_for: List[str]
+    deleted_for: list[str]
     created_at: datetime
     updated_at: datetime
 
@@ -61,10 +61,10 @@ class ChatResponse(BaseModel):
     id: str
     lodge_id: str
     member_id: str
-    admin_id: Optional[str]
-    subject: Optional[str]
-    last_message_at: Optional[datetime]
-    last_message_preview: Optional[str]
+    admin_id: str | None
+    subject: str | None
+    last_message_at: datetime | None
+    last_message_preview: str | None
     unread_admin: int
     unread_member: int
     is_archived: bool
@@ -80,8 +80,8 @@ class ChatListResponse(BaseModel):
     member_name: str
     member_phone: str
     member_country: str
-    last_message: Optional[str]
-    last_message_at: Optional[datetime]
+    last_message: str | None
+    last_message_at: datetime | None
     unread_count: int
     is_unread: bool
-    member_avatar: Optional[str]
+    member_avatar: str | None

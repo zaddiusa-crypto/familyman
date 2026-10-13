@@ -1,8 +1,6 @@
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
-from app.core.models import ApplicationStatusEnum
+
+from pydantic import BaseModel
 
 
 class ApplicationBase(BaseModel):
@@ -11,12 +9,12 @@ class ApplicationBase(BaseModel):
     id_number: str
     gender: str
     birth_town: str
-    nickname: Optional[str] = None
+    nickname: str | None = None
     country: str
     phone: str
     country_code: str
-    business_type: Optional[str] = None
-    business_location: Optional[str] = None
+    business_type: str | None = None
+    business_location: str | None = None
     nearest_lodge: str
 
 
@@ -26,30 +24,30 @@ class ApplicationCreate(BaseModel):
     id_number: str
     gender: str
     birth_town: str
-    nickname: Optional[str] = None
+    nickname: str | None = None
     country: str
     phone: str
     country_code: str
-    business_type: Optional[str] = None
-    business_location: Optional[str] = None
+    business_type: str | None = None
+    business_location: str | None = None
     nearest_lodge: str
 
 
 class ApplicationUpdate(BaseModel):
-    full_name: Optional[str] = None
-    dob: Optional[datetime] = None
-    id_number: Optional[str] = None
-    gender: Optional[str] = None
-    birth_town: Optional[str] = None
-    nickname: Optional[str] = None
-    country: Optional[str] = None
-    phone: Optional[str] = None
-    country_code: Optional[str] = None
-    business_type: Optional[str] = None
-    business_location: Optional[str] = None
-    nearest_lodge: Optional[str] = None
-    status: Optional[str] = None
-    review_notes: Optional[str] = None
+    full_name: str | None = None
+    dob: datetime | None = None
+    id_number: str | None = None
+    gender: str | None = None
+    birth_town: str | None = None
+    nickname: str | None = None
+    country: str | None = None
+    phone: str | None = None
+    country_code: str | None = None
+    business_type: str | None = None
+    business_location: str | None = None
+    nearest_lodge: str | None = None
+    status: str | None = None
+    review_notes: str | None = None
 
 
 class ApplicationResponse(BaseModel):
@@ -60,17 +58,17 @@ class ApplicationResponse(BaseModel):
     id_number: str
     gender: str
     birth_town: str
-    nickname: Optional[str]
+    nickname: str | None
     country: str
     phone: str
     country_code: str
-    business_type: Optional[str]
-    business_location: Optional[str]
+    business_type: str | None
+    business_location: str | None
     nearest_lodge: str
     status: str
-    reviewed_by: Optional[str]
-    reviewed_at: Optional[datetime]
-    review_notes: Optional[str]
+    reviewed_by: str | None
+    reviewed_at: datetime | None
+    review_notes: str | None
     submitted_at: datetime
     created_at: datetime
     updated_at: datetime
@@ -86,7 +84,7 @@ class ApplicationListResponse(BaseModel):
     phone: str
     status: str
     submitted_at: datetime
-    reviewed_at: Optional[datetime]
+    reviewed_at: datetime | None
 
     class Config:
         from_attributes = True

@@ -1,12 +1,20 @@
-from datetime import datetime, timezone
 import uuid
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
+from datetime import UTC, datetime
 
-from app.core.models import User, Lodge, RoleEnum, UserStatusEnum, Application, ApplicationStatusEnum
-from app.core.security import get_password_hash, verify_password, create_token_pair, decode_token
-from app.core.exceptions import AuthenticationError, ValidationError, ConflictError, NotFoundError
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError
+from app.core.models import (
+    Application,
+    ApplicationStatusEnum,
+    Lodge,
+    RoleEnum,
+    User,
+    UserStatusEnum,
+)
+from app.core.security import create_token_pair, decode_token, get_password_hash, verify_password
 
 
 class AuthService:
@@ -75,13 +83,12 @@ class AuthService:
         if user.status == UserStatusEnum.SUSPENDED:
             raise AuthenticationError("Account suspended")
 
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.now(UTC)
         await self.db.commit()
 
         return user, str(user.lodge_id)
 
     async def refresh_token(self, refresh_token: str) -> dict:
-        from app.core.security import decode_token, create_token_pair
         try:
             payload = decode_token(refresh_token)
             if payload.type != "refresh":

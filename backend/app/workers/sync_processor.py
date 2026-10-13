@@ -1,13 +1,14 @@
 import asyncio
 import logging
-import json
-from datetime import datetime, timezone
-from uuid import UUID
+from datetime import UTC, datetime
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
-from app.core.models import SyncOutbox, SyncStatusEnum, User, Chat, Message, Application, Notification
+from app.core.models import (
+    SyncOutbox,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class SyncProcessor:
             await self.db.execute(
                 update(SyncOutbox)
                 .where(SyncOutbox.id == entry.id)
-                .values(status="completed", processed_at=datetime.now(timezone.utc))
+                .values(status="completed", processed_at=datetime.now(UTC))
             )
             await self.db.commit()
 

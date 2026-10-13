@@ -1,23 +1,19 @@
-from typing import Optional, List
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, HTTPException, status, UploadFile, File
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
 
-from app.modules.chat.schemas import MessageCreate, MessageResponse, ChatResponse
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import Chat, Message, User, MessageStatusEnum, MediaTypeEnum
-from app.core.rbac import require_permission
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.models import Chat, Message, User
+from app.modules.auth.dependencies import get_current_active_user, get_db
 from app.modules.chat.service import ChatService
-
 
 router = APIRouter(prefix="/chats", tags=["Chats"])
 
 
-@router.get("", response_model=List[dict])
+@router.get("", response_model=list[dict])
 async def list_chats(
     page: int = 1,
     limit: int = 20,
@@ -32,7 +28,7 @@ async def list_chats(
     for chat in chats:
         other_user = chat.member if current_user.id == chat.admin_id else chat.member
         unread = chat.unread_admin if current_user.id == chat.admin_id else chat.unread_member
-        
+
         items.append({
             "id": str(chat.id),
             "member_name": chat.member.full_name,
@@ -54,8 +50,7 @@ async def create_chat(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
-    from app.core.models import User, Chat
+    from app.core.models import User
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Only admins can create chats")
@@ -64,7 +59,7 @@ async def create_chat(
     member_result = await db.execute(
         select(User).where(User.id == UUID(data["member_id"]), User.lodge_id == current_user.lodge_id)
     )
-    member = result.scalar_one_or_none()
+    member = member_result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
@@ -80,9 +75,7 @@ async def get_chat(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
-    from app.core.models import Chat
 
     result = await db.execute(
         select(Chat).options(
@@ -118,7 +111,7 @@ async def get_chat(
     }
 
 
-@router.get("/{chat_id}/messages", response_model=List[dict])
+@router.get("/{chat_id}/messages", response_model=list[dict])
 async def get_messages(
     chat_id: str,
     limit: int = 50,
@@ -126,9 +119,7 @@ async def get_messages(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
-    from app.core.models import Message, Chat
 
     chat_result = await db.execute(
         select(Chat).where(Chat.id == UUID(chat_id), Chat.lodge_id == current_user.lodge_id)
@@ -181,9 +172,7 @@ async def send_message(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select, update
-    from app.core.models import Chat, Message
 
     chat_result = await db.execute(
         select(Chat).where(Chat.id == UUID(chat_id), Chat.lodge_id == current_user.lodge_id)
@@ -216,7 +205,7 @@ async def send_message(
         update(Chat)
         .where(Chat.id == UUID(chat_id))
         .values(
-            last_message_at=datetime.now(timezone.utc),
+            last_message_at=datetime.now(UTC),
             last_message_preview=data.get("content", "")[:100] if data.get("content") else "Media",
         )
     )
@@ -249,9 +238,7 @@ async def mark_chat_read(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select, update
-    from app.core.models import Chat, Message
 
     chat_result = await db.execute(
         select(Chat).where(Chat.id == UUID(chat_id), Chat.lodge_id == current_user.lodge_id)
@@ -264,13 +251,13 @@ async def mark_chat_read(
         await db.execute(
             update(Chat)
             .where(Chat.id == UUID(chat_id))
-            .values(seen_by_admin=datetime.now(timezone.utc), unread_admin=0)
+            .values(seen_by_admin=datetime.now(UTC), unread_admin=0)
         )
     else:
         await db.execute(
             update(Chat)
             .where(Chat.id == UUID(chat_id))
-            .values(seen_by_member=datetime.now(timezone.utc), unread_member=0)
+            .values(seen_by_member=datetime.now(UTC), unread_member=0)
         )
 
     await db.execute(
@@ -295,9 +282,7 @@ async def edit_message(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
-    from sqlalchemy import select, update
-    from app.core.models import Message
+    from sqlalchemy import select
 
     result = await db.execute(
         select(Message).where(
@@ -325,9 +310,7 @@ async def delete_message(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
-    from sqlalchemy import select, update
-    from app.core.models import Message
+    from sqlalchemy import select
 
     result = await db.execute(
         select(Message).where(

@@ -1,19 +1,17 @@
-from typing import Optional, List
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
-from sqlalchemy.orm import selectinload
 
-from app.modules.applications.schemas import (
-    ApplicationCreate, ApplicationUpdate, ApplicationResponse, ApplicationListResponse
+from app.core.models import (
+    Application,
+    ApplicationStatusEnum,
+    FeeSchedule,
+    User,
 )
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import Application, ApplicationStatusEnum, User, UserStatusEnum, RoleEnum, FeeSchedule
-from app.core.rbac import require_permission, require_role
-from app.core.exceptions import NotFoundError, ValidationError
-
+from app.modules.auth.dependencies import get_current_active_user, get_db
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
@@ -52,8 +50,8 @@ async def create_application(
 async def list_applications(
     page: int = 1,
     limit: int = 20,
-    status: Optional[str] = None,
-    search: Optional[str] = None,
+    status: str | None = None,
+    search: str | None = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -73,7 +71,6 @@ async def list_applications(
             or_(
                 Application.full_name.ilike(f"%{search}%"),
                 Application.id_number.ilike(f"%{search}%"),
-                Application.email.ilike(f"%{search}%"),
             )
         )
 
@@ -109,12 +106,11 @@ async def list_applications(
     return {"items": items, "total": 0, "page": 1, "limit": 20}
 
 
-@router.get("/fees", response_model=List[dict])
+@router.get("/fees", response_model=list[dict])
 async def get_fee_schedule(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.core.models import FeeSchedule
     from sqlalchemy import select
 
     result = await db.execute(
@@ -145,8 +141,8 @@ async def get_application(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
+
     from app.core.models import Application, User
 
     result = await db.execute(
@@ -177,7 +173,6 @@ async def get_application(
         "nickname": application.nickname,
         "country": application.country,
         "phone": application.phone,
-        "country_code": application.country_code,
         "business_type": application.business_type,
         "business_location": application.business_location,
         "nearest_lodge": application.nearest_lodge,
@@ -203,8 +198,8 @@ async def update_application(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
+
     from app.core.models import Application, ApplicationStatusEnum
 
     result = await db.execute(
@@ -239,7 +234,7 @@ async def update_application(
                     raise HTTPException(status_code=400, detail="Invalid status")
             if key == "status" and value == ApplicationStatusEnum.APPROVED:
                 application.reviewed_by = current_user.id
-                application.reviewed_at = datetime.now(timezone.utc)
+                application.reviewed_at = datetime.now(UTC)
             setattr(application, key, value)
 
     await db.commit()
@@ -252,13 +247,13 @@ async def update_application(
 async def update_application_status(
     application_id: str,
     status: str,
-    review_notes: Optional[str] = None,
+    review_notes: str | None = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
-    from app.core.models import Application, ApplicationStatusEnum, User
+
+    from app.core.models import Application, ApplicationStatusEnum
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -280,7 +275,7 @@ async def update_application_status(
 
     application.status = ApplicationStatusEnum(status)
     application.reviewed_by = current_user.id
-    application.reviewed_at = datetime.now(timezone.utc)
+    application.reviewed_at = datetime.now(UTC)
     if review_notes:
         application.review_notes = review_notes
 

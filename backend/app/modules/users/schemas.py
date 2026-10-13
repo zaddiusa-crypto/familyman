@@ -1,7 +1,7 @@
-from typing import Optional, List
-from uuid import UUID
-from pydantic import BaseModel, EmailStr
 from datetime import datetime
+
+from pydantic import BaseModel
+
 from app.core.models import RoleEnum, UserStatusEnum
 
 
@@ -9,12 +9,12 @@ class UserListResponse(BaseModel):
     id: str
     email: str
     full_name: str
-    phone: Optional[str]
+    phone: str | None
     role: RoleEnum
     status: UserStatusEnum
     language: str
     created_at: datetime
-    last_login_at: Optional[datetime]
+    last_login_at: datetime | None
 
     class Config:
         from_attributes = True
@@ -24,14 +24,14 @@ class UserDetailResponse(BaseModel):
     id: str
     email: str
     full_name: str
-    phone: Optional[str]
-    country_code: Optional[str]
+    phone: str | None
+    country_code: str | None
     role: RoleEnum
     status: UserStatusEnum
     language: str
-    fcm_tokens: List[str]
-    telegram_chat_id: Optional[str]
-    last_login_at: Optional[datetime]
+    fcm_tokens: list[str]
+    telegram_chat_id: str | None
+    last_login_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -40,12 +40,12 @@ class UserDetailResponse(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    country_code: Optional[str] = None
-    language: Optional[str] = None
-    status: Optional[UserStatusEnum] = None
-    role: Optional[str] = None
+    full_name: str | None = None
+    phone: str | None = None
+    country_code: str | None = None
+    language: str | None = None
+    status: UserStatusEnum | None = None
+    role: str | None = None
 
 
 class UserStatsResponse(BaseModel):

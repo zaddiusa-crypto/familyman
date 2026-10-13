@@ -1,16 +1,16 @@
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
+
 from pydantic import BaseModel
+
 from app.core.models import PaymentStatusEnum
 
 
 class PaymentBase(BaseModel):
-    fee_schedule_id: Optional[str] = None
+    fee_schedule_id: str | None = None
     amount: float
     currency: str
-    method: Optional[str] = None
-    reference: Optional[str] = None
+    method: str | None = None
+    reference: str | None = None
 
 
 class PaymentCreate(PaymentBase):
@@ -18,22 +18,22 @@ class PaymentCreate(PaymentBase):
 
 
 class PaymentUpdate(BaseModel):
-    status: Optional[PaymentStatusEnum] = None
-    method: Optional[str] = None
-    reference: Optional[str] = None
-    paid_at: Optional[datetime] = None
+    status: PaymentStatusEnum | None = None
+    method: str | None = None
+    reference: str | None = None
+    paid_at: datetime | None = None
 
 
 class PaymentResponse(BaseModel):
     id: str
     user_id: str
-    fee_schedule_id: Optional[str]
+    fee_schedule_id: str | None
     amount: float
     currency: str
     status: PaymentStatusEnum
-    method: Optional[str]
-    reference: Optional[str]
-    paid_at: Optional[datetime]
+    method: str | None
+    reference: str | None
+    paid_at: datetime | None
     created_at: datetime
 
     class Config:
@@ -44,7 +44,7 @@ class FeeScheduleResponse(BaseModel):
     id: str
     name: str
     label: str
-    description: Optional[str]
+    description: str | None
     amount: float
     currency: str
     is_required: bool

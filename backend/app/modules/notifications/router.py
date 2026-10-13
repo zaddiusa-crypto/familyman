@@ -1,15 +1,13 @@
-from typing import Optional, List
+from datetime import UTC, datetime
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update
 
-from app.modules.notifications.schemas import NotificationCreate, NotificationResponse
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import Notification, NotificationPriorityEnum, User
-from app.core.rbac import require_permission
-from app.core.exceptions import NotFoundError
-
+from app.core.models import Notification, User
+from app.modules.auth.dependencies import get_current_active_user, get_db
+from app.modules.notifications.schemas import NotificationCreate
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -63,7 +61,8 @@ async def get_unread_count(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from app.core.models import Notification
 
     result = await db.execute(
@@ -82,8 +81,7 @@ async def mark_read(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
-    from sqlalchemy import select, update
+    from sqlalchemy import select
 
     result = await db.execute(
         select(Notification).where(
@@ -96,7 +94,7 @@ async def mark_read(
         raise HTTPException(status_code=404, detail="Notification not found")
 
     notification.is_read = True
-    notification.read_at = datetime.now(timezone.utc)
+    notification.read_at = datetime.now(UTC)
     await db.commit()
 
     return {"message": "Notification marked as read"}
@@ -110,7 +108,7 @@ async def mark_all_read(
     await db.execute(
         update(Notification)
         .where(Notification.user_id == current_user.id, Notification.is_read == False)
-        .values(is_read=True, read_at=datetime.now(timezone.utc))
+        .values(is_read=True, read_at=datetime.now(UTC))
     )
     await db.commit()
     return {"message": "All notifications marked as read"}
@@ -125,8 +123,7 @@ async def create_notification(
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    from uuid import UUID
-    from app.core.models import User, NotificationPriorityEnum
+    from app.core.models import User
 
     target_user_id = UUID(data.user_id)
     target_user_result = await db.execute(
@@ -160,8 +157,9 @@ async def broadcast_notification(
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    from app.core.models import User, NotificationPriorityEnum, RoleEnum
     from sqlalchemy import select
+
+    from app.core.models import User
 
     target_roles = data.get("target_roles", ["member"])
     query = select(User).where(User.lodge_id == current_user.lodge_id)

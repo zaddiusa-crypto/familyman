@@ -1,14 +1,15 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, EmailStr, Field
+
 from app.core.models import RoleEnum, UserStatusEnum
 
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=200)
-    phone: Optional[str] = Field(None, max_length=30)
-    country_code: Optional[str] = Field(None, max_length=5)
+    phone: str | None = Field(None, max_length=30)
+    country_code: str | None = Field(None, max_length=5)
     language: str = Field("en", max_length=5)
 
 
@@ -16,9 +17,9 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=128)
     lodge_code: str = Field(..., max_length=20)
     country: str = Field(..., max_length=2)
-    business_type: Optional[str] = None
-    business_location: Optional[str] = None
-    nearest_lodge: Optional[str] = None
+    business_type: str | None = None
+    business_location: str | None = None
+    nearest_lodge: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -28,12 +29,12 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=2, max_length=200)
-    phone: Optional[str] = Field(None, max_length=30)
-    country_code: Optional[str] = Field(None, max_length=5)
-    language: Optional[str] = Field(None, max_length=5)
-    fcm_tokens: Optional[list[str]] = None
-    telegram_chat_id: Optional[str] = None
+    full_name: str | None = Field(None, min_length=2, max_length=200)
+    phone: str | None = Field(None, max_length=30)
+    country_code: str | None = Field(None, max_length=5)
+    language: str | None = Field(None, max_length=5)
+    fcm_tokens: list[str] | None = None
+    telegram_chat_id: str | None = None
 
 
 class UserResponse(UserBase):
@@ -42,8 +43,8 @@ class UserResponse(UserBase):
     status: UserStatusEnum
     lodge_id: str
     fcm_tokens: list[str] = []
-    telegram_chat_id: Optional[str] = None
-    last_login_at: Optional[datetime] = None
+    telegram_chat_id: str | None = None
+    last_login_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -77,10 +78,10 @@ class RegisterApplicationRequest(BaseModel):
     id_number: str = Field(..., min_length=1, max_length=50)
     gender: str = Field(..., max_length=10)
     birth_town: str = Field(..., min_length=1, max_length=100)
-    nickname: Optional[str] = Field(None, max_length=50)
+    nickname: str | None = Field(None, max_length=50)
     country: str = Field(..., max_length=2)
     phone: str = Field(..., min_length=7, max_length=15)
     country_code: str = Field(..., max_length=5)
-    business_type: Optional[str] = None
-    business_location: Optional[str] = None
+    business_type: str | None = None
+    business_location: str | None = None
     nearest_lodge: str = Field(..., min_length=1, max_length=200)

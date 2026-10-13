@@ -1,6 +1,5 @@
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
-import os
 
 
 class Settings(BaseSettings):
@@ -28,7 +27,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # CORS
-    ALLOWED_ORIGINS: list[str] = ["*"]
+    ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
 
     # Cloudflare R2
     R2_ACCOUNT_ID: str = ""

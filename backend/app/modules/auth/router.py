@@ -1,18 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models import User
+from app.core.security import create_token_pair, decode_token
+from app.modules.auth.dependencies import get_current_active_user, get_db
 from app.modules.auth.schemas import (
-    UserCreate, UserLogin, UserResponse, TokenPair,
-    RefreshTokenRequest, ForgotPasswordRequest, ResetPasswordRequest,
+    ForgotPasswordRequest,
+    RefreshTokenRequest,
     RegisterApplicationRequest,
+    ResetPasswordRequest,
+    TokenPair,
+    UserCreate,
+    UserLogin,
+    UserResponse,
 )
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
 from app.modules.auth.service import AuthService
-from app.core.security import create_token_pair, verify_password, decode_token
-from app.core.models import User, RoleEnum, UserStatusEnum
-from app.core.exceptions import AuthenticationError, ValidationError, NotFoundError
-
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -20,8 +23,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post("/register", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
 async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     service = AuthService(db)
-    user, lodge_id = await service.register(data.dict())
-    token_pair = AuthService(db).create_token_pair(str(user.id), user.role.value, str(user.lodge_id))
+    user, lodge_id = await service.register(data.model_dump())
+    token_pair = create_token_pair(str(user.id), user.role.value, str(user.lodge_id))
     return token_pair
 
 
@@ -29,13 +32,13 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     service = AuthService(db)
     user, lodge_id = await service.login(data.email, data.password)
-    
+
     from app.core.security import create_token_pair
     token_pair = create_token_pair(str(user.id), user.role.value, str(user.lodge_id))
-    
+
     if data.remember_me:
         pass  # Refresh token already has 30 days expiry
-    
+
     return token_pair
 
 
@@ -43,16 +46,16 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
 async def refresh_token(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     service = AuthService(db)
     try:
-        from app.core.security import decode_token, create_token_pair
+        from app.core.security import create_token_pair, decode_token
         payload = decode_token(data.refresh_token)
         if payload.type != "refresh":
             raise ValueError("Invalid token type")
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    from app.core.models import User
-    from sqlalchemy import select
     from uuid import UUID
+
+    from app.core.models import User
 
     result = await db.execute(select(User).where(User.id == UUID(payload.sub)))
     user = result.scalar_one_or_none()
@@ -104,26 +107,26 @@ async def link_telegram(
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import select
     from app.core.models import User
 
     result = await db.execute(select(User).where(User.email == data.email.lower()))
     user = result.scalar_one_or_none()
-    
+
     if user:
         # TODO: Send password reset email
         pass
-    
+
     return {"message": "If the email exists, a reset link has been sent"}
 
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
-    from app.core.security import decode_token
-    from app.core.security import get_password_hash
-    from app.core.models import User
-    from sqlalchemy import select
     from uuid import UUID
+
+    from sqlalchemy import select
+
+    from app.core.models import User
+    from app.core.security import get_password_hash
 
     try:
         payload = decode_token(data.token)
@@ -148,9 +151,7 @@ async def register_application(
     data: RegisterApplicationRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    from app.core.models import Lodge, Application, ApplicationStatusEnum, User
-    from sqlalchemy import select
-    from uuid import uuid4
+    from app.core.models import Application, ApplicationStatusEnum, Lodge
 
     # Find or create user
     # This is for guest applications (before login)
@@ -161,7 +162,7 @@ async def register_application(
 
     application = Application(
         lodge_id=lodge.id,
-        user_id=UUID(int=0),  # Will be updated when user registers
+        user_id=None,  # Guest application; linked when the user registers
         full_name=data.full_name,
         dob=data.dob,
         id_number=data.id_number,

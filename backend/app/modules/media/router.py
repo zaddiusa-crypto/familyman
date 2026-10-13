@@ -1,17 +1,15 @@
-from typing import Optional
-from uuid import UUID
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+import os
+import uuid
+
 import boto3
 from botocore.config import Config
-import uuid
-import os
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceError
 from app.core.models import User
-
+from app.modules.auth.dependencies import get_current_active_user, get_db
 
 router = APIRouter(prefix="/media", tags=["Media"])
 

@@ -1,21 +1,17 @@
-from typing import Optional, List
+from datetime import UTC
 from uuid import UUID
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
-from app.modules.payments.schemas import PaymentCreate, PaymentUpdate, PaymentResponse
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import Payment, FeeSchedule, PaymentStatusEnum, User
-from app.core.rbac import require_permission
-from app.core.exceptions import NotFoundError
-
+from app.core.models import FeeSchedule, Payment, PaymentStatusEnum, User
+from app.modules.auth.dependencies import get_current_active_user, get_db
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
-@router.get("/fees", response_model=List[dict])
+@router.get("/fees", response_model=list[dict])
 async def list_fee_schedules(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -79,6 +75,7 @@ async def update_fee_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     from uuid import UUID
+
     from sqlalchemy import select
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
@@ -109,6 +106,7 @@ async def delete_fee_schedule(
     db: AsyncSession = Depends(get_db),
 ):
     from uuid import UUID
+
     from sqlalchemy import select
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
@@ -156,7 +154,7 @@ async def record_payment(
 async def list_payments(
     page: int = 1,
     limit: int = 20,
-    status: Optional[str] = None,
+    status: str | None = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -206,6 +204,7 @@ async def get_payment(
     db: AsyncSession = Depends(get_db),
 ):
     from uuid import UUID
+
     from sqlalchemy import select
 
     result = await db.execute(
@@ -243,6 +242,7 @@ async def update_payment(
     db: AsyncSession = Depends(get_db),
 ):
     from uuid import UUID
+
     from sqlalchemy import select
 
     if current_user.role.value not in ["lodge_admin", "super_admin"]:
@@ -267,8 +267,8 @@ async def update_payment(
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Invalid status")
                 if value == PaymentStatusEnum.COMPLETED and not payment.paid_at:
-                    from datetime import datetime, timezone
-                    value = datetime.now(timezone.utc)
+                    from datetime import datetime
+                    value = datetime.now(UTC)
             setattr(payment, key, value)
 
     await db.commit()

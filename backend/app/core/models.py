@@ -1,13 +1,25 @@
 import enum
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, List
+from datetime import UTC, datetime
+from typing import Optional
+
 from sqlalchemy import (
-    String, Text, DateTime, ForeignKey, Enum, JSON, Boolean,
-    Integer, DECIMAL, Index, UniqueConstraint, ARRAY, func, text
+    ARRAY,
+    DECIMAL,
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
 )
+from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, INET, JSONB
+
 from app.core.database import Base
 
 
@@ -66,13 +78,13 @@ class SyncStatusEnum(str, enum.Enum):
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -88,16 +100,16 @@ class Lodge(Base, TimestampMixin):
     timezone: Mapped[str] = mapped_column(String(50), default="Africa/Nairobi", nullable=False)
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
-    users: Mapped[List["User"]] = relationship(back_populates="lodge", lazy="dynamic")
-    applications: Mapped[List["Application"]] = relationship(back_populates="lodge", lazy="dynamic")
-    chats: Mapped[List["Chat"]] = relationship(back_populates="lodge", lazy="dynamic")
-    messages: Mapped[List["Message"]] = relationship(back_populates="lodge", lazy="dynamic")
-    notifications: Mapped[List["Notification"]] = relationship(back_populates="lodge", lazy="dynamic")
-    announcements: Mapped[List["Announcement"]] = relationship(back_populates="lodge", lazy="dynamic")
-    fee_schedules: Mapped[List["FeeSchedule"]] = relationship(back_populates="lodge", lazy="dynamic")
-    payments: Mapped[List["Payment"]] = relationship(back_populates="lodge", lazy="dynamic")
-    sync_outbox: Mapped[List["SyncOutbox"]] = relationship(back_populates="lodge", lazy="dynamic")
-    audit_logs: Mapped[List["AuditLog"]] = relationship(back_populates="lodge", lazy="dynamic")
+    users: Mapped[list["User"]] = relationship(back_populates="lodge", lazy="dynamic")
+    applications: Mapped[list["Application"]] = relationship(back_populates="lodge", lazy="dynamic")
+    chats: Mapped[list["Chat"]] = relationship(back_populates="lodge", lazy="dynamic")
+    messages: Mapped[list["Message"]] = relationship(back_populates="lodge", lazy="dynamic")
+    notifications: Mapped[list["Notification"]] = relationship(back_populates="lodge", lazy="dynamic")
+    announcements: Mapped[list["Announcement"]] = relationship(back_populates="lodge", lazy="dynamic")
+    fee_schedules: Mapped[list["FeeSchedule"]] = relationship(back_populates="lodge", lazy="dynamic")
+    payments: Mapped[list["Payment"]] = relationship(back_populates="lodge", lazy="dynamic")
+    sync_outbox: Mapped[list["SyncOutbox"]] = relationship(back_populates="lodge", lazy="dynamic")
+    audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="lodge", lazy="dynamic")
 
 
 class User(Base, TimestampMixin):
@@ -113,35 +125,35 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    phone: Mapped[Optional[str]] = mapped_column(String(30))
-    country_code: Mapped[Optional[str]] = mapped_column(String(5))
+    phone: Mapped[str | None] = mapped_column(String(30))
+    country_code: Mapped[str | None] = mapped_column(String(5))
     role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum), default=RoleEnum.MEMBER, nullable=False)
     status: Mapped[UserStatusEnum] = mapped_column(
         Enum(UserStatusEnum), default=UserStatusEnum.PENDING, nullable=False
     )
     language: Mapped[str] = mapped_column(String(5), default="en", nullable=False)
-    fcm_tokens: Mapped[List[str]] = mapped_column(ARRAY(Text), default=list, nullable=False)
-    telegram_chat_id: Mapped[Optional[str]] = mapped_column(String(50))
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    fcm_tokens: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, nullable=False)
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(50))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     lodge: Mapped["Lodge"] = relationship(back_populates="users")
-    applications: Mapped[List["Application"]] = relationship(back_populates="user", lazy="dynamic")
-    sent_messages: Mapped[List["Message"]] = relationship(
+    applications: Mapped[list["Application"]] = relationship(back_populates="user", lazy="dynamic")
+    sent_messages: Mapped[list["Message"]] = relationship(
         "Message", foreign_keys="Message.sender_id", back_populates="sender", lazy="dynamic"
     )
-    chat_memberships: Mapped[List["Chat"]] = relationship(
+    chat_memberships: Mapped[list["Chat"]] = relationship(
         "Chat", foreign_keys="Chat.member_id", back_populates="member", lazy="dynamic"
     )
-    assigned_chats: Mapped[List["Chat"]] = relationship(
+    assigned_chats: Mapped[list["Chat"]] = relationship(
         "Chat", foreign_keys="Chat.admin_id", back_populates="admin", lazy="dynamic"
     )
-    notifications: Mapped[List["Notification"]] = relationship(back_populates="user", lazy="dynamic")
-    sent_announcements: Mapped[List["Announcement"]] = relationship(
+    notifications: Mapped[list["Notification"]] = relationship(back_populates="user", lazy="dynamic")
+    sent_announcements: Mapped[list["Announcement"]] = relationship(
         back_populates="author", lazy="dynamic"
     )
-    payments: Mapped[List["Payment"]] = relationship(back_populates="user", lazy="dynamic")
-    sync_outbox: Mapped[List["SyncOutbox"]] = relationship(back_populates="user", lazy="dynamic")
-    audit_logs: Mapped[List["AuditLog"]] = relationship(
+    payments: Mapped[list["Payment"]] = relationship(back_populates="user", lazy="dynamic")
+    sync_outbox: Mapped[list["SyncOutbox"]] = relationship(back_populates="user", lazy="dynamic")
+    audit_logs: Mapped[list["AuditLog"]] = relationship(
         "AuditLog", foreign_keys="AuditLog.actor_id", back_populates="actor", lazy="dynamic"
     )
 
@@ -156,10 +168,10 @@ class Application(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
 
@@ -168,21 +180,21 @@ class Application(Base, TimestampMixin):
     id_number: Mapped[str] = mapped_column(String(50), nullable=False)
     gender: Mapped[str] = mapped_column(String(10), nullable=False)
     birth_town: Mapped[str] = mapped_column(String(100), nullable=False)
-    nickname: Mapped[Optional[str]] = mapped_column(String(50))
+    nickname: Mapped[str | None] = mapped_column(String(50))
     country: Mapped[str] = mapped_column(String(2), nullable=False)
     phone: Mapped[str] = mapped_column(String(30), nullable=False)
-    business_type: Mapped[Optional[str]] = mapped_column(String(100))
-    business_location: Mapped[Optional[str]] = mapped_column(String(200))
+    business_type: Mapped[str | None] = mapped_column(String(100))
+    business_location: Mapped[str | None] = mapped_column(String(200))
     nearest_lodge: Mapped[str] = mapped_column(String(200), nullable=False)
 
     status: Mapped[ApplicationStatusEnum] = mapped_column(
         Enum(ApplicationStatusEnum), default=ApplicationStatusEnum.PENDING, nullable=False
     )
-    reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    review_notes: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_notes: Mapped[str | None] = mapped_column(Text)
     submitted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     lodge: Mapped["Lodge"] = relationship(back_populates="applications")
@@ -210,13 +222,13 @@ class Chat(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    admin_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    admin_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
     )
-    subject: Mapped[Optional[str]] = mapped_column(String(200))
-    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    last_message_preview: Mapped[Optional[str]] = mapped_column(Text)
+    subject: Mapped[str | None] = mapped_column(String(200))
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_message_preview: Mapped[str | None] = mapped_column(Text)
     unread_admin: Mapped[int] = mapped_column(Integer, default=0)
     unread_member: Mapped[int] = mapped_column(Integer, default=0)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -228,7 +240,7 @@ class Chat(Base, TimestampMixin):
     admin: Mapped[Optional["User"]] = relationship(
         "User", foreign_keys=[admin_id], back_populates="assigned_chats"
     )
-    messages: Mapped[List["Message"]] = relationship(
+    messages: Mapped[list["Message"]] = relationship(
         back_populates="chat", cascade="all, delete-orphan", lazy="dynamic"
     )
 
@@ -260,17 +272,17 @@ class Message(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    content: Mapped[Optional[str]] = mapped_column(Text)
-    media_url: Mapped[Optional[str]] = mapped_column(String(500))
-    media_type: Mapped[Optional[MediaTypeEnum]] = mapped_column(Enum(MediaTypeEnum))
-    reply_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    content: Mapped[str | None] = mapped_column(Text)
+    media_url: Mapped[str | None] = mapped_column(String(500))
+    media_type: Mapped[MediaTypeEnum | None] = mapped_column(Enum(MediaTypeEnum))
+    reply_to_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL")
     )
     status: Mapped[MessageStatusEnum] = mapped_column(
         Enum(MessageStatusEnum), default=MessageStatusEnum.SENT, nullable=False
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    deleted_for: Mapped[List[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), default=list)
+    deleted_for: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), default=list)
 
     lodge: Mapped["Lodge"] = relationship(back_populates="messages")
     chat: Mapped["Chat"] = relationship(back_populates="messages")
@@ -309,8 +321,8 @@ class Notification(Base, TimestampMixin):
         Enum(NotificationPriorityEnum), default=NotificationPriorityEnum.NORMAL, nullable=False
     )
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    sent_via: Mapped[List[str]] = mapped_column(ARRAY(Text), default=list)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sent_via: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
 
     lodge: Mapped["Lodge"] = relationship(back_populates="notifications")
     user: Mapped["User"] = relationship(back_populates="notifications")
@@ -338,11 +350,11 @@ class Announcement(Base, TimestampMixin):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    media_urls: Mapped[List[str]] = mapped_column(ARRAY(Text), default=list)
-    target_roles: Mapped[List[str]] = mapped_column(ARRAY(Text), default=["member"])
+    media_urls: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    target_roles: Mapped[list[str]] = mapped_column(ARRAY(Text), default=["member"])
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
-    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     lodge: Mapped["Lodge"] = relationship(back_populates="announcements")
     author: Mapped["User"] = relationship(back_populates="sent_announcements")
@@ -360,7 +372,7 @@ class FeeSchedule(Base, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     label: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     is_required: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -386,7 +398,7 @@ class Payment(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    fee_schedule_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    fee_schedule_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("fee_schedules.id", ondelete="SET NULL"),
     )
@@ -395,9 +407,9 @@ class Payment(Base, TimestampMixin):
     status: Mapped[PaymentStatusEnum] = mapped_column(
         Enum(PaymentStatusEnum), default=PaymentStatusEnum.PENDING, nullable=False
     )
-    method: Mapped[Optional[str]] = mapped_column(String(30))
-    reference: Mapped[Optional[str]] = mapped_column(String(100))
-    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    method: Mapped[str | None] = mapped_column(String(30))
+    reference: Mapped[str | None] = mapped_column(String(100))
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     lodge: Mapped["Lodge"] = relationship(back_populates="payments")
     user: Mapped["User"] = relationship(back_populates="payments")
@@ -432,8 +444,8 @@ class SyncOutbox(Base, TimestampMixin):
         Enum(SyncStatusEnum), default=SyncStatusEnum.PENDING, nullable=False, index=True
     )
     attempts: Mapped[int] = mapped_column(Integer, default=0)
-    last_error: Mapped[Optional[str]] = mapped_column(Text)
-    processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     lodge: Mapped["Lodge"] = relationship(back_populates="sync_outbox")
     user: Mapped["User"] = relationship(back_populates="sync_outbox")
@@ -461,12 +473,12 @@ class AuditLog(Base, TimestampMixin):
         index=True,
     )
     action: Mapped[str] = mapped_column(String(50), nullable=False)
-    target_type: Mapped[Optional[str]] = mapped_column(String(50))
-    target_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    old_values: Mapped[Optional[dict]] = mapped_column(JSONB)
-    new_values: Mapped[Optional[dict]] = mapped_column(JSONB)
-    ip_address: Mapped[Optional[str]] = mapped_column(INET)
-    user_agent: Mapped[Optional[str]] = mapped_column(Text)
+    target_type: Mapped[str | None] = mapped_column(String(50))
+    target_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    old_values: Mapped[dict | None] = mapped_column(JSONB)
+    new_values: Mapped[dict | None] = mapped_column(JSONB)
+    ip_address: Mapped[str | None] = mapped_column(INET)
+    user_agent: Mapped[str | None] = mapped_column(Text)
 
     lodge: Mapped["Lodge"] = relationship(back_populates="audit_logs")
     actor: Mapped["User"] = relationship(back_populates="audit_logs")

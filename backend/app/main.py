@@ -1,25 +1,24 @@
+import logging
+import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-import time
-import logging
 
 from app.core.config import settings
-from app.core.database import init_db, close_db, AsyncSessionLocal
+from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
-from app.core.models import Base
-from app.modules.auth.router import router as auth_router
-from app.modules.users.router import router as users_router
-from app.modules.applications.router import router as applications_router
-from app.modules.chat.router import router as chat_router
-from app.modules.notifications.router import router as notifications_router
-from app.modules.announcements.router import router as announcements_router
-from app.modules.payments.router import router as payments_router
 from app.modules.admin.router import router as admin_router
+from app.modules.announcements.router import router as announcements_router
+from app.modules.applications.router import router as applications_router
+from app.modules.auth.router import router as auth_router
+from app.modules.chat.router import router as chat_router
 from app.modules.lodges.router import router as lodges_router
 from app.modules.media.router import router as media_router
+from app.modules.notifications.router import router as notifications_router
+from app.modules.payments.router import router as payments_router
+from app.modules.users.router import router as users_router
 from app.ws.socketio_app import socketio_app
 
 logging.basicConfig(level=logging.INFO)
@@ -48,7 +47,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials="*" not in settings.ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -60,17 +59,6 @@ async def add_process_time_header(request: Request, call_next):
     response = await call_next(request)
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
-    return response
-
-
-@app.middleware("http")
-async def tenant_context_middleware(request: Request, call_next):
-    lodge_id = request.headers.get("X-Lodge-ID")
-    if lodge_id:
-        async with AsyncSessionLocal() as session:
-            await session.execute(text(f"SET LOCAL app.current_lodge_id = '{lodge_id}'"))
-            await session.commit()
-    response = await call_next(request)
     return response
 
 

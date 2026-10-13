@@ -1,16 +1,22 @@
-from typing import Optional, List
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, and_, desc
 
-from app.modules.admin.schemas import BroadcastCreate, BroadcastResponse, AdminStatsResponse
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import User, RoleEnum, UserStatusEnum, Application, ApplicationStatusEnum, Chat, Message, Payment, PaymentStatusEnum, Notification, FeeSchedule
-from app.core.rbac import require_permission, require_role
-from app.core.exceptions import NotFoundError
-
+from app.core.models import (
+    Application,
+    ApplicationStatusEnum,
+    Chat,
+    Message,
+    Notification,
+    Payment,
+    User,
+)
+from app.core.rbac import require_permission
+from app.modules.admin.schemas import AdminStatsResponse, BroadcastCreate
+from app.modules.auth.dependencies import get_db
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -85,7 +91,7 @@ async def get_admin_stats(
     revenue = revenue_result.scalar() or 0
 
     # Active users
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     active_24h = await db.execute(
         select(func.count(User.id)).where(
             User.lodge_id == current_user.lodge_id,
@@ -112,7 +118,7 @@ async def get_admin_stats(
     fcm_tokens = fcm_tokens.scalar()
 
     # Sync queue depth
-    from app.core.models import SyncOutbox, SyncStatusEnum
+    from app.core.models import SyncOutbox
     sync_queue = await db.execute(
         select(func.count(SyncOutbox.id)).where(
             SyncOutbox.lodge_id == current_user.lodge_id,
@@ -142,9 +148,9 @@ async def get_admin_stats(
 async def admin_list_users(
     page: int = 1,
     limit: int = 20,
-    search: Optional[str] = None,
-    status_filter: Optional[str] = None,
-    role_filter: Optional[str] = None,
+    search: str | None = None,
+    status_filter: str | None = None,
+    role_filter: str | None = None,
     current_user: User = Depends(require_permission("admin.users.manage")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -203,9 +209,9 @@ async def admin_update_user(
     current_user: User = Depends(require_permission("admin.users.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
-    from app.core.models import User, RoleEnum, UserStatusEnum
+
+    from app.core.models import User
     from app.core.security import get_password_hash
 
     result = await db.execute(
@@ -243,8 +249,8 @@ async def admin_update_user(
 async def admin_list_applications(
     page: int = 1,
     limit: int = 20,
-    status_filter: Optional[str] = None,
-    search: Optional[str] = None,
+    status_filter: str | None = None,
+    search: str | None = None,
     current_user: User = Depends(require_permission("admin.apps.review")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -256,7 +262,6 @@ async def admin_list_applications(
             or_(
                 Application.full_name.ilike(f"%{search}%"),
                 Application.id_number.ilike(f"%{search}%"),
-                Application.email.ilike(f"%{search}%"),
             )
         )
 
@@ -302,13 +307,13 @@ async def admin_list_applications(
 async def admin_update_application_status(
     application_id: str,
     status: str,
-    review_notes: Optional[str] = None,
+    review_notes: str | None = None,
     current_user: User = Depends(require_permission("admin.apps.review")),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from sqlalchemy import select
-    from app.core.models import Application, ApplicationStatusEnum
+
+    from app.core.models import Application
 
     result = await db.execute(
         select(Application).where(
@@ -320,7 +325,6 @@ async def admin_update_application_status(
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    from app.core.models import ApplicationStatusEnum
     try:
         new_status = ApplicationStatusEnum(status)
     except ValueError:
@@ -328,7 +332,7 @@ async def admin_update_application_status(
 
     application.status = ApplicationStatusEnum(status)
     application.reviewed_by = current_user.id
-    application.reviewed_at = datetime.now(timezone.utc)
+    application.reviewed_at = datetime.now(UTC)
     if review_notes:
         application.review_notes = review_notes
 
@@ -341,7 +345,7 @@ async def admin_update_application_status(
 async def admin_list_chats(
     page: int = 1,
     limit: int = 20,
-    search: Optional[str] = None,
+    search: str | None = None,
     current_user: User = Depends(require_permission("admin.chats.monitor")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -390,8 +394,9 @@ async def send_broadcast(
     current_user: User = Depends(require_permission("admin.broadcast")),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.core.models import User, Notification, NotificationPriorityEnum
     from sqlalchemy import select
+
+    from app.core.models import User
 
     target_roles = data.target_roles or ["member"]
     query = select(User).where(User.lodge_id == current_user.lodge_id)
@@ -432,12 +437,13 @@ async def send_broadcast(
 async def get_audit_logs(
     page: int = 1,
     limit: int = 50,
-    action: Optional[str] = None,
+    action: str | None = None,
     current_user: User = Depends(require_permission("admin.analytics")),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.core.models import AuditLog
     from sqlalchemy import select
+
+    from app.core.models import AuditLog
 
     query = select(AuditLog).where(AuditLog.lodge_id == current_user.lodge_id)
 
@@ -479,8 +485,9 @@ async def get_sync_status(
     current_user: User = Depends(require_permission("admin.analytics")),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.core.models import SyncOutbox, SyncStatusEnum
     from sqlalchemy import select
+
+    from app.core.models import SyncOutbox, SyncStatusEnum
 
     pending = await db.execute(
         select(func.count(SyncOutbox.id)).where(

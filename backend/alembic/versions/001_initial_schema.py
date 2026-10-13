@@ -1,13 +1,14 @@
 """Initial multi-tenant schema
 
 Revision ID: 001
-Revises: 
+Revises:
 Create Date: 2024-01-01 00:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = '001'
 down_revision = None
@@ -53,8 +54,8 @@ def upgrade() -> None:
         sa.Column('full_name', sa.String(200), nullable=False),
         sa.Column('phone', sa.String(30)),
         sa.Column('country_code', sa.String(5)),
-        sa.Column('role', sa.Enum('super_admin', 'lodge_admin', 'member', name='role_enum'), nullable=False, server_default='member'),
-        sa.Column('status', sa.Enum('pending', 'approved', 'rejected', 'suspended', name='user_status_enum'), nullable=False, server_default='pending'),
+        sa.Column('role', postgresql.ENUM('super_admin', 'lodge_admin', 'member', name='role_enum', create_type=False), nullable=False, server_default='member'),
+        sa.Column('status', postgresql.ENUM('pending', 'approved', 'rejected', 'suspended', name='user_status_enum', create_type=False), nullable=False, server_default='pending'),
         sa.Column('language', sa.String(5), nullable=False, server_default='en'),
         sa.Column('fcm_tokens', postgresql.ARRAY(sa.Text()), nullable=False, server_default='{}'),
         sa.Column('telegram_chat_id', sa.String(50)),
@@ -86,7 +87,7 @@ def upgrade() -> None:
         sa.Column('business_type', sa.String(100)),
         sa.Column('business_location', sa.String(200)),
         sa.Column('nearest_lodge', sa.String(200), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'approved', 'rejected', name='application_status_enum'), nullable=False, server_default='pending'),
+        sa.Column('status', postgresql.ENUM('pending', 'approved', 'rejected', name='application_status_enum', create_type=False), nullable=False, server_default='pending'),
         sa.Column('reviewed_by', postgresql.UUID(as_uuid=True)),
         sa.Column('reviewed_at', sa.DateTime(timezone=True)),
         sa.Column('review_notes', sa.Text()),
@@ -132,9 +133,9 @@ def upgrade() -> None:
         sa.Column('sender_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('content', sa.Text()),
         sa.Column('media_url', sa.String(500)),
-        sa.Column('media_type', sa.Enum('image', 'video', 'document', 'voice', name='media_type_enum')),
+        sa.Column('media_type', postgresql.ENUM('image', 'video', 'document', 'voice', name='media_type_enum', create_type=False)),
         sa.Column('reply_to_id', postgresql.UUID(as_uuid=True)),
-        sa.Column('status', sa.Enum('sent', 'delivered', 'read', name='message_status_enum'), nullable=False, server_default='sent'),
+        sa.Column('status', postgresql.ENUM('sent', 'delivered', 'read', name='message_status_enum', create_type=False), nullable=False, server_default='sent'),
         sa.Column('is_deleted', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('deleted_for', postgresql.ARRAY(postgresql.UUID(as_uuid=True)), nullable=False, server_default='{}'),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
@@ -158,7 +159,7 @@ def upgrade() -> None:
         sa.Column('title', sa.String(200), nullable=False),
         sa.Column('body', sa.Text(), nullable=False),
         sa.Column('data', postgresql.JSONB(), nullable=False, server_default='{}'),
-        sa.Column('priority', sa.Enum('high', 'normal', 'low', name='notification_priority_enum'), nullable=False, server_default='normal'),
+        sa.Column('priority', postgresql.ENUM('high', 'normal', 'low', name='notification_priority_enum', create_type=False), nullable=False, server_default='normal'),
         sa.Column('is_read', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('read_at', sa.DateTime(timezone=True)),
         sa.Column('sent_via', postgresql.ARRAY(sa.Text()), nullable=False, server_default='{}'),
@@ -220,7 +221,7 @@ def upgrade() -> None:
         sa.Column('fee_schedule_id', postgresql.UUID(as_uuid=True)),
         sa.Column('amount', sa.Numeric(12, 2), nullable=False),
         sa.Column('currency', sa.String(3), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'completed', 'failed', 'refunded', name='payment_status_enum'), nullable=False, server_default='pending'),
+        sa.Column('status', postgresql.ENUM('pending', 'completed', 'failed', 'refunded', name='payment_status_enum', create_type=False), nullable=False, server_default='pending'),
         sa.Column('method', sa.String(30)),
         sa.Column('reference', sa.String(100)),
         sa.Column('paid_at', sa.DateTime(timezone=True)),
@@ -243,7 +244,7 @@ def upgrade() -> None:
         sa.Column('operation', sa.String(10), nullable=False),
         sa.Column('payload', postgresql.JSONB(), nullable=False),
         sa.Column('idempotency_key', sa.String(100), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'processing', 'completed', 'failed', name='sync_status_enum'), nullable=False, server_default='pending'),
+        sa.Column('status', postgresql.ENUM('pending', 'processing', 'completed', 'failed', name='sync_status_enum', create_type=False), nullable=False, server_default='pending'),
         sa.Column('attempts', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('last_error', sa.Text()),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
@@ -300,7 +301,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute('DROP FUNCTION IF EXISTS set_tenant_context(uuid)')
-    
+
     tables = [
         'audit_logs', 'sync_outbox', 'payments', 'fee_schedules',
         'announcements', 'notifications', 'messages', 'chats',

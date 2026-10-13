@@ -1,10 +1,9 @@
 from enum import Enum
-from functools import wraps
-from typing import Set
-from fastapi import Depends, HTTPException, status
-from app.core.models import RoleEnum
-from app.modules.auth.dependencies import get_current_user
+
+from fastapi import Depends, HTTPException
+
 from app.core.models import User
+from app.modules.auth.dependencies import get_current_user
 
 
 class Permission(str, Enum):
@@ -23,7 +22,7 @@ class Permission(str, Enum):
     MEMBER_DOCUMENTS = "member.documents"
 
 
-ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
+ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "super_admin": {
         Permission.ADMIN_DASHBOARD, Permission.ADMIN_USERS_MANAGE,
         Permission.ADMIN_APPS_REVIEW, Permission.ADMIN_BROADCAST,

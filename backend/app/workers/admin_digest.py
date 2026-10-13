@@ -1,13 +1,12 @@
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime, timedelta
 
-from app.core.database import AsyncSessionLocal
+from sqlalchemy import func, select
+
 from app.core.config import settings
-from app.core.models import User, RoleEnum, Application, Payment, Chat, Message, Notification
-from app.workers.telegram_dispatcher import send_admin_alert
+from app.core.database import AsyncSessionLocal
+from app.core.models import Application, Message, Notification, Payment, User
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,8 @@ async def send_daily_digest():
         )
         admins = result.scalars().all()
 
-        now = datetime.now(timezone.utc)
-        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+        now = datetime.now(UTC)
+        yesterday = datetime.now(UTC) - timedelta(days=1)
 
         for admin in admins:
             if not admin.telegram_chat_id:
@@ -53,7 +52,7 @@ async def send_daily_digest():
                     Payment.created_at >= yesterday,
                     Payment.status == "completed"
                 ))
-            revenue = revenue_result.scalar() or 0
+            revenue = revenue.scalar() or 0
 
             new_messages = await db.execute(
                 select(func.count(Message.id)).where(
@@ -105,7 +104,7 @@ async def run_digest_scheduler():
     """Run digest scheduler."""
     while True:
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             # Send at 8 AM UTC daily
             if now.hour == 8 and now.minute < 5:
                 await send_daily_digest()

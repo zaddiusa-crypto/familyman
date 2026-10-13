@@ -1,13 +1,15 @@
 import asyncio
-import sys
 import os
 import ssl
+import sys
 from logging.config import fileConfig
+from urllib.parse import parse_qs, urlparse
+
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from alembic import context
-from urllib.parse import urlparse, parse_qs, urlencode
 
 sys.path.append(".")
 

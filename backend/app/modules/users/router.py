@@ -1,19 +1,15 @@
-from typing import Optional, List
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
-from sqlalchemy.orm import selectinload
 
+from app.core.models import RoleEnum, User, UserStatusEnum
+from app.core.rbac import require_permission
+from app.modules.auth.dependencies import get_current_active_user, get_db
 from app.modules.users.schemas import (
-    UserListResponse, UserDetailResponse, UserUpdateRequest, UserStatsResponse
+    UserStatsResponse,
 )
-from app.modules.auth.dependencies import get_db, get_current_user, get_current_active_user
-from app.core.models import User, RoleEnum, UserStatusEnum
-from app.core.rbac import require_permission, require_role
-from app.core.security import get_password_hash
-from app.core.exceptions import NotFoundError, ValidationError
-
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -39,13 +35,13 @@ async def get_user_stats(
     )
 
 
-@router.get("", response_model=List[dict])
+@router.get("", response_model=list[dict])
 async def list_users(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    search: Optional[str] = None,
-    status: Optional[str] = None,
-    role: Optional[str] = None,
+    search: str | None = None,
+    status: str | None = None,
+    role: str | None = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -122,7 +118,6 @@ async def get_user(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from app.core.models import User
 
     result = await db.execute(
@@ -156,9 +151,7 @@ async def update_user(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
-    from app.core.models import User, RoleEnum, UserStatusEnum
-    from app.core.security import get_password_hash
+    from app.core.models import User, UserStatusEnum
 
     result = await db.execute(
         select(User).where(User.id == UUID(user_id), User.lodge_id == current_user.lodge_id)
@@ -198,7 +191,6 @@ async def add_fcm_token(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from app.core.models import User
 
     result = await db.execute(
@@ -222,7 +214,6 @@ async def remove_fcm_token(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from uuid import UUID
     from app.core.models import User
 
     result = await db.execute(

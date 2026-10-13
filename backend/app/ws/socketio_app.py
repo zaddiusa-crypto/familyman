@@ -1,15 +1,13 @@
-import socketio
-from fastapi import FastAPI
-from app.core.config import settings
-from app.core.security import decode_token
-from app.core.models import User, Chat, Message, MessageStatusEnum
-from app.core.database import AsyncSessionLocal
-from sqlalchemy import select, update
-from sqlalchemy.orm import selectinload
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-import json
 
+import socketio
+from sqlalchemy import select, update
+
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.core.models import Chat, Message, User
+from app.core.security import decode_token
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
@@ -86,8 +84,8 @@ async def chat_join(sid, data):
             update(Chat)
             .where(Chat.id == UUID(chat_id))
             .values(
-                seen_by_admin=datetime.now(timezone.utc) if is_admin else Chat.seen_by_admin,
-                seen_by_member=datetime.now(timezone.utc) if not is_admin else Chat.seen_by_member,
+                seen_by_admin=datetime.now(UTC) if is_admin else Chat.seen_by_admin,
+                seen_by_member=datetime.now(UTC) if not is_admin else Chat.seen_by_member,
                 unread_admin=0 if is_admin else Chat.unread_admin,
                 unread_member=0 if not is_admin else Chat.unread_member,
             )
@@ -147,7 +145,7 @@ async def message_send(sid, data):
             update(Chat)
             .where(Chat.id == UUID(chat_id))
             .values(
-                last_message_at=datetime.now(timezone.utc),
+                last_message_at=datetime.now(UTC),
                 last_message_preview=content[:100] if content else "Media",
             )
         )
@@ -208,8 +206,8 @@ async def message_read(sid, data):
             update(Chat)
             .where(Chat.id == UUID(chat_id))
             .values(
-                seen_by_admin=datetime.now(timezone.utc) if is_admin else Chat.seen_by_admin,
-                seen_by_member=datetime.now(timezone.utc) if not is_admin else Chat.seen_by_member,
+                seen_by_admin=datetime.now(UTC) if is_admin else Chat.seen_by_admin,
+                seen_by_member=datetime.now(UTC) if not is_admin else Chat.seen_by_member,
                 unread_admin=0 if is_admin else Chat.unread_admin,
                 unread_member=0 if not is_admin else Chat.unread_member,
             )

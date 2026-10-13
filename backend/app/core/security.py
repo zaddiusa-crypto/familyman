@@ -1,12 +1,14 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
-from jose import jwt, JWTError
+import os
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from app.core.config import settings
 
+from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -18,7 +20,7 @@ class TokenPayload(BaseModel):
     exp: int
     iat: int
     type: str = "access"
-    jti: Optional[str] = None
+    jti: str | None = None
 
 
 class TokenPair(BaseModel):
@@ -48,15 +50,15 @@ def create_access_token(
     subject: str,
     role: str,
     lodge_id: str,
-    expires_delta: Optional[timedelta] = None,
-    extra_claims: Optional[Dict[str, Any]] = None,
+    expires_delta: timedelta | None = None,
+    extra_claims: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    iat = datetime.now(timezone.utc)
+    iat = datetime.now(UTC)
     jti = os.urandom(16).hex()
 
     claims = {
@@ -77,8 +79,8 @@ def create_access_token(
 
 
 def create_refresh_token(subject: str, role: str, lodge_id: str) -> tuple[str, str]:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    iat = datetime.now(timezone.utc)
+    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    iat = datetime.now(UTC)
     jti = os.urandom(16).hex()
 
     claims = {

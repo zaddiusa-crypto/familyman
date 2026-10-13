@@ -1,18 +1,18 @@
-from typing import Optional, List
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from sqlalchemy import select, func, or_, and_, desc
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.models import Chat, Message, User, MessageStatusEnum
+from app.core.models import Chat, Message
 
 
 class ChatService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_chats(self, user_id: UUID, is_admin: bool) -> List:
+    async def get_chats(self, user_id: UUID, is_admin: bool) -> list:
         if is_admin:
             query = select(Chat).options(
                 selectinload(Chat.member),
@@ -83,13 +83,14 @@ class ChatService:
         await self.db.flush()
 
         # Update chat last message
-        from app.core.models import Chat
         from sqlalchemy import update
+
+        from app.core.models import Chat
         await self.db.execute(
             update(Chat)
             .where(Chat.id == chat_id)
             .values(
-                last_message_at=datetime.now(timezone.utc),
+                last_message_at=datetime.now(UTC),
                 last_message_preview=data.get("content", "")[:100] if data.get("content") else "Media",
             )
         )
@@ -97,9 +98,10 @@ class ChatService:
         await self.db.refresh(message)
         return message
 
-    async def get_messages(self, chat_id: UUID, user_id: UUID, limit: int = 50, offset: int = 0) -> List:
-        from app.core.models import Message
+    async def get_messages(self, chat_id: UUID, user_id: UUID, limit: int = 50, offset: int = 0) -> list:
         from sqlalchemy import select
+
+        from app.core.models import Message
 
         query = select(Message).options(
             selectinload(Message.sender),
@@ -114,8 +116,9 @@ class ChatService:
         return result.scalars().all()
 
     async def mark_read(self, chat_id: UUID, user_id: UUID, is_admin: bool):
-        from app.core.models import Chat, Message
         from sqlalchemy import update
+
+        from app.core.models import Chat, Message
 
         chat = await self.get_chat(chat_id, user_id, is_admin)
         if not chat:
@@ -125,13 +128,13 @@ class ChatService:
             await self.db.execute(
                 update(Chat)
                 .where(Chat.id == chat_id)
-                .values(seen_by_admin=datetime.now(timezone.utc), unread_admin=0)
+                .values(seen_by_admin=datetime.now(UTC), unread_admin=0)
             )
         else:
             await self.db.execute(
                 update(Chat)
                 .where(Chat.id == chat_id)
-                .values(seen_by_member=datetime.now(timezone.utc), unread_member=0)
+                .values(seen_by_member=datetime.now(UTC), unread_member=0)
             )
 
         # Update message statuses
@@ -147,8 +150,9 @@ class ChatService:
         await self.db.commit()
 
     async def update_message_status(self, message_id: UUID, status: str):
-        from app.core.models import Message
         from sqlalchemy import update
+
+        from app.core.models import Message
         await self.db.execute(
             update(Message)
             .where(Message.id == message_id)
@@ -157,8 +161,9 @@ class ChatService:
         await self.db.commit()
 
     async def delete_message(self, message_id: UUID, user_id: UUID, for_everyone: bool = False):
-        from app.core.models import Message
         from sqlalchemy import select, update
+
+        from app.core.models import Message
 
         result = await self.db.execute(
             select(Message).where(Message.id == message_id)
@@ -185,8 +190,9 @@ class ChatService:
         await self.db.commit()
 
     async def edit_message(self, message_id: UUID, user_id: UUID, new_content: str):
-        from app.core.models import Message
         from sqlalchemy import update
+
+        from app.core.models import Message
 
         await self.db.execute(
             update(Message)

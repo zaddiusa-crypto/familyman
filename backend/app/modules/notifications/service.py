@@ -1,11 +1,10 @@
-from typing import Optional, List
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from sqlalchemy import select, func, update
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Notification, NotificationPriorityEnum, User
-from app.core.config import settings
 
 
 class NotificationService:
@@ -45,9 +44,8 @@ class NotificationService:
         priority: NotificationPriorityEnum = NotificationPriorityEnum.NORMAL,
         target_roles: list = None,
     ) -> int:
-        from app.core.models import User, RoleEnum
 
-        query = select(User).where(User.lodge_id == UUID(self.lodge_id))
+        query = select(User).where(User.lodge_id == lodge_id)
         if target_roles:
             query = query.where(User.role.in_(target_roles))
 
@@ -57,7 +55,7 @@ class NotificationService:
         notifications = []
         for user in users:
             notification = Notification(
-                lodge_id=UUID(self.lodge_id),
+                lodge_id=lodge_id,
                 user_id=user.id,
                 type="broadcast",
                 title=title,
@@ -85,7 +83,7 @@ class NotificationService:
         total_result = await self.db.execute(
             select(func.count()).select_from(query.subquery())
         )
-        total = result.scalar()
+        total = total_result.scalar()
 
         query = query.order_by(Notification.created_at.desc()).offset((1 - 1) * 20).limit(20)
         result = await self.db.execute(query)
@@ -124,7 +122,7 @@ class NotificationService:
             return False
 
         notification.is_read = True
-        notification.read_at = datetime.now(timezone.utc)
+        notification.read_at = datetime.now(UTC)
         await self.db.commit()
         return True
 
@@ -132,7 +130,7 @@ class NotificationService:
         await self.db.execute(
             update(Notification)
             .where(Notification.user_id == user_id, Notification.is_read == False)
-            .values(is_read=True, read_at=datetime.now(timezone.utc))
+            .values(is_read=True, read_at=datetime.now(UTC))
         )
         await self.db.commit()
 

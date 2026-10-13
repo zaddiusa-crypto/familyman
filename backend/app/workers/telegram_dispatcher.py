@@ -1,14 +1,15 @@
 import asyncio
 import logging
+from uuid import UUID
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from sqlalchemy import select
 
-from app.core.database import AsyncSessionLocal
 from app.core.config import settings
-from app.core.models import User, Notification
+from app.core.database import AsyncSessionLocal
+from app.core.models import User
 
 logger = logging.getLogger(__name__)
 

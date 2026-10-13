@@ -1,6 +1,5 @@
-from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -17,12 +16,12 @@ class LodgeCreate(LodgeBase):
 
 
 class LodgeUpdate(BaseModel):
-    name: Optional[str] = None
-    code: Optional[str] = None
-    country: Optional[str] = None
-    currency: Optional[str] = None
-    timezone: Optional[str] = None
-    settings: Optional[dict] = None
+    name: str | None = None
+    code: str | None = None
+    country: str | None = None
+    currency: str | None = None
+    timezone: str | None = None
+    settings: dict | None = None
 
 
 class LodgeResponse(BaseModel):
