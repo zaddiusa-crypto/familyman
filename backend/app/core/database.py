@@ -3,7 +3,7 @@ from sqlalchemy.orm import DeclarativeBase, declared_attr
 from sqlalchemy.pool import NullPool
 from app.core.config import settings
 import ssl
-from urllib.parse import urlparse, parse_qs, urlencode
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 
 class Base(DeclarativeBase):
@@ -14,7 +14,7 @@ class Base(DeclarativeBase):
 
 def create_engine_with_ssl(database_url: str):
     """Create async engine with proper SSL configuration for asyncpg."""
-    # Parse URL manually to avoid SQLAlchemy URL parsing issues with postgresql+asyncpg
+    # Parse URL manually to handle postgresql+asyncpg driver
     parsed = urlparse(database_url)
     
     # Extract SSL parameters from query string
@@ -35,18 +35,13 @@ def create_engine_with_ssl(database_url: str):
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
     
-    # Rebuild URL without sslmode in query
+    # Rebuild query string without sslmode
     new_query = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
     query_string = urlencode(new_query) if new_query else ""
     
-    # Build URL without sslmode - use postgresql+asyncpg driver
-    netloc = f"{parsed.username}:{parsed.password}@{parsed.hostname}"
-    if parsed.port:
-        netloc += f":{parsed.port}"
-    
-    url_without_ssl = f"postgresql+asyncpg://{netloc}{parsed.path}"
-    if query_string:
-        url_without_ssl += f"?{query_string}"
+    # Reconstruct URL without sslmode
+    new_parsed = parsed._replace(query=query_string)
+    url_without_ssl = urlunparse(new_parsed)
     
     connect_args = {}
     if ssl_context:
