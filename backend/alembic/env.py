@@ -62,7 +62,15 @@ def run_migrations_online() -> None:
     asyncio.run(run_async_migrations())
 
 
-if context.is_offline():
+# Check if we're in offline mode (compatible with different alembic versions)
+def is_offline_mode():
+    try:
+        return context.is_offline()
+    except AttributeError:
+        # Fallback for older/newer alembic versions
+        return context.get_context().is_offline()
+
+if is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
