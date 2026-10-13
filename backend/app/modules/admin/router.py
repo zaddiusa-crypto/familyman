@@ -381,7 +381,7 @@ async def admin_list_chats(
         "total": total,
         "page": 1,
         "limit": 20,
-    )
+    }
 
 
 @router.post("/broadcast", response_model=dict)
