@@ -18,9 +18,6 @@ from app.core.models import Base
 
 config = context.config
 
-# Disable interpolation BEFORE any config operations to avoid % interpolation issues
-config._interpolation = None
-
 
 def build_database_url(database_url: str):
     """Build database URL with sslmode removed from query string."""
@@ -79,17 +76,12 @@ if database_url:
     # Handle case where Render sets the value as "DATABASE_URL=postgresql://..."
     if database_url.startswith("DATABASE_URL="):
         database_url = database_url[len("DATABASE_URL="):]
-    # Disable interpolation on BOTH config and underlying ConfigParser BEFORE setting URL
-    config._interpolation = None
-    if config.file_config is not None:
-        config.file_config._interpolation = None
-    config.set_main_option("sqlalchemy.url", database_url)
+    # Escape '%' so configparser interpolation doesn't choke on %-encoded
+    # credentials (e.g. a password containing '@' -> %40).
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-from app.core.config import settings
-from app.core.models import Base
 
 target_metadata = Base.metadata
 
