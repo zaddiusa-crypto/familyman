@@ -62,35 +62,5 @@ def run_migrations_online() -> None:
     asyncio.run(run_async_migrations())
 
 
-# Check if we're in offline mode (compatible with different alembic versions)
-def is_offline_mode():
-    # Try multiple approaches for different alembic versions
-    try:
-        # Standard alembic API (most versions)
-        return context.is_offline()
-    except AttributeError:
-        pass
-    
-    try:
-        # Some versions expose it on the context object
-        return context.get_context().is_offline
-    except (AttributeError, Exception):
-        pass
-    
-    try:
-        # Check alembic version for API differences
-        import alembic
-        version = tuple(map(int, alembic.__version__.split('.')[:2]))
-        if version >= (1, 13):
-            # Newer alembic might have different API
-            return context.get_context().is_offline
-    except Exception:
-        pass
-    
-    # Default to online mode for deployment (Render has DB access)
-    return False
-
-if is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+# Always run online migrations (Render has DB connectivity)
+run_migrations_online()
