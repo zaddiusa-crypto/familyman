@@ -1,10 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, declared_attr
-from sqlalchemy import event
 from sqlalchemy.pool import NullPool
-from sqlalchemy.engine import URL
 from app.core.config import settings
 import ssl
+from urllib.parse import urlparse, parse_qs, urlencode
 
 
 class Base(DeclarativeBase):
@@ -15,11 +14,12 @@ class Base(DeclarativeBase):
 
 def create_engine_with_ssl(database_url: str):
     """Create async engine with proper SSL configuration for asyncpg."""
-    url = URL.create(database_url)
+    # Parse URL manually to avoid SQLAlchemy URL parsing issues with postgresql+asyncpg
+    parsed = urlparse(database_url)
     
     # Extract SSL parameters from query string
-    query = dict(url.query) if url.query else {}
-    sslmode = query.pop("sslmode", None)
+    query_params = parse_qs(parsed.query)
+    sslmode = query_params.pop("sslmode", [None])[0]
     
     # Create SSL context if needed
     ssl_context = None
@@ -35,16 +35,18 @@ def create_engine_with_ssl(database_url: str):
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
     
-    # Rebuild URL without sslmode
-    url_without_ssl = URL.create(
-        drivername=url.drivername,
-        username=url.username,
-        password=url.password,
-        host=url.host,
-        port=url.port,
-        database=url.database,
-        query=query,
-    )
+    # Rebuild URL without sslmode in query
+    new_query = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
+    query_string = urlencode(new_query) if new_query else ""
+    
+    # Build URL without sslmode - use postgresql+asyncpg driver
+    netloc = f"{parsed.username}:{parsed.password}@{parsed.hostname}"
+    if parsed.port:
+        netloc += f":{parsed.port}"
+    
+    url_without_ssl = f"postgresql+asyncpg://{netloc}{parsed.path}"
+    if query_string:
+        url_without_ssl += f"?{query_string}"
     
     connect_args = {}
     if ssl_context:
