@@ -59,6 +59,9 @@ def get_ssl_context(database_url: str):
 # Get DATABASE_URL from environment variable (set by Render)
 database_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
 if database_url:
+    # Handle case where Render sets the value as "DATABASE_URL=postgresql://..."
+    if database_url.startswith("DATABASE_URL="):
+        database_url = database_url[len("DATABASE_URL="):]
     # Build URL without sslmode for sqlalchemy.url
     clean_url = build_database_url(database_url)
     # Disable interpolation to avoid issues with % in password
@@ -97,6 +100,9 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     # Get the original DATABASE_URL for SSL context
     raw_database_url = os.getenv("DATABASE_URL") or settings.DATABASE_URL
+    # Handle case where Render sets the value as "DATABASE_URL=postgresql://..."
+    if raw_database_url and raw_database_url.startswith("DATABASE_URL="):
+        raw_database_url = raw_database_url[len("DATABASE_URL="):]
     ssl_context = get_ssl_context(raw_database_url)
 
     # Build clean URL for engine
