@@ -1,5 +1,9 @@
 
+# Installs a DoH DNS fallback (see app.core.dns_fallback). Imported here so the
+# patch is active before any database connection resolves a hostname.
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from . import dns_fallback  # noqa: F401
 
 
 class Settings(BaseSettings):
