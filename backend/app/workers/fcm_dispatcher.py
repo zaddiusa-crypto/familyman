@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 import httpx
-from sqlalchemy import select, update
+from sqlalchemy import String, select, update
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
@@ -86,7 +86,7 @@ async def process_notification_queue():
                 result = await db.execute(
                     select(Notification).where(
                         Notification.is_read == False,
-                        Notification.sent_via.notilike("%fcm%"),
+                        Notification.sent_via.cast(String).not_like("%fcm%"),
                         Notification.priority == NotificationPriorityEnum.HIGH
                     ).limit(50)
                 )

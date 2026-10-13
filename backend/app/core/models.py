@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import (
-    ARRAY,
     DECIMAL,
+    JSON,
     Boolean,
     DateTime,
     Enum,
@@ -15,9 +15,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     text,
 )
-from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -92,13 +92,13 @@ class TimestampMixin:
 class Lodge(Base, TimestampMixin):
     __tablename__ = "lodges"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     country: Mapped[str] = mapped_column(String(2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="KES", nullable=False)
     timezone: Mapped[str] = mapped_column(String(50), default="Africa/Nairobi", nullable=False)
-    settings: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    settings: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
     users: Mapped[list["User"]] = relationship(back_populates="lodge", lazy="dynamic")
     applications: Mapped[list["Application"]] = relationship(back_populates="lodge", lazy="dynamic")
@@ -115,9 +115,9 @@ class Lodge(Base, TimestampMixin):
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -132,7 +132,7 @@ class User(Base, TimestampMixin):
         Enum(UserStatusEnum), default=UserStatusEnum.PENDING, nullable=False
     )
     language: Mapped[str] = mapped_column(String(5), default="en", nullable=False)
-    fcm_tokens: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, nullable=False)
+    fcm_tokens: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     telegram_chat_id: Mapped[str | None] = mapped_column(String(50))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -161,15 +161,15 @@ class User(Base, TimestampMixin):
 class Application(Base, TimestampMixin):
     __tablename__ = "applications"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
@@ -190,7 +190,7 @@ class Application(Base, TimestampMixin):
     status: Mapped[ApplicationStatusEnum] = mapped_column(
         Enum(ApplicationStatusEnum), default=ApplicationStatusEnum.PENDING, nullable=False
     )
-    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_notes: Mapped[str | None] = mapped_column(Text)
     submitted_at: Mapped[datetime] = mapped_column(
@@ -209,21 +209,21 @@ class Application(Base, TimestampMixin):
 class Chat(Base, TimestampMixin):
     __tablename__ = "chats"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     member_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     admin_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="SET NULL"),
     )
     subject: Mapped[str | None] = mapped_column(String(200))
@@ -253,21 +253,21 @@ class Chat(Base, TimestampMixin):
 class Message(Base, TimestampMixin):
     __tablename__ = "messages"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     chat_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("chats.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     sender_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -276,13 +276,13 @@ class Message(Base, TimestampMixin):
     media_url: Mapped[str | None] = mapped_column(String(500))
     media_type: Mapped[MediaTypeEnum | None] = mapped_column(Enum(MediaTypeEnum))
     reply_to_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL")
+        Uuid, ForeignKey("messages.id", ondelete="SET NULL")
     )
     status: Mapped[MessageStatusEnum] = mapped_column(
         Enum(MessageStatusEnum), default=MessageStatusEnum.SENT, nullable=False
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    deleted_for: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), default=list)
+    deleted_for: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     lodge: Mapped["Lodge"] = relationship(back_populates="messages")
     chat: Mapped["Chat"] = relationship(back_populates="messages")
@@ -300,15 +300,15 @@ class Message(Base, TimestampMixin):
 class Notification(Base, TimestampMixin):
     __tablename__ = "notifications"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -316,19 +316,24 @@ class Notification(Base, TimestampMixin):
     type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     priority: Mapped[NotificationPriorityEnum] = mapped_column(
         Enum(NotificationPriorityEnum), default=NotificationPriorityEnum.NORMAL, nullable=False
     )
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    sent_via: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    sent_via: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     lodge: Mapped["Lodge"] = relationship(back_populates="notifications")
     user: Mapped["User"] = relationship(back_populates="notifications")
 
     __table_args__ = (
-        Index("ix_notifications_user_unread", "user_id", "is_read", postgresql_where=text("is_read = false")),
+        Index(
+            "ix_notifications_user_unread",
+            "user_id",
+            "is_read",
+            sqlite_where=text("is_read = 0"),
+        ),
         Index("ix_notifications_lodge_created", "lodge_id", "created_at"),
     )
 
@@ -336,22 +341,22 @@ class Notification(Base, TimestampMixin):
 class Announcement(Base, TimestampMixin):
     __tablename__ = "announcements"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     author_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    media_urls: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
-    target_roles: Mapped[list[str]] = mapped_column(ARRAY(Text), default=["member"])
+    media_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    target_roles: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["member"])
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -363,9 +368,9 @@ class Announcement(Base, TimestampMixin):
 class FeeSchedule(Base, TimestampMixin):
     __tablename__ = "fee_schedules"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -385,21 +390,21 @@ class FeeSchedule(Base, TimestampMixin):
 class Payment(Base, TimestampMixin):
     __tablename__ = "payments"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     fee_schedule_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("fee_schedules.id", ondelete="SET NULL"),
     )
     amount: Mapped[float] = mapped_column(DECIMAL(12, 2), nullable=False)
@@ -423,22 +428,22 @@ class Payment(Base, TimestampMixin):
 class SyncOutbox(Base, TimestampMixin):
     __tablename__ = "sync_outbox"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     table_name: Mapped[str] = mapped_column(String(50), nullable=False)
     operation: Mapped[str] = mapped_column(String(10), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     status: Mapped[SyncStatusEnum] = mapped_column(
         Enum(SyncStatusEnum), default=SyncStatusEnum.PENDING, nullable=False, index=True
@@ -459,25 +464,25 @@ class SyncOutbox(Base, TimestampMixin):
 class AuditLog(Base, TimestampMixin):
     __tablename__ = "audit_logs"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     lodge_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("lodges.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     actor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     target_type: Mapped[str | None] = mapped_column(String(50))
-    target_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-    old_values: Mapped[dict | None] = mapped_column(JSONB)
-    new_values: Mapped[dict | None] = mapped_column(JSONB)
-    ip_address: Mapped[str | None] = mapped_column(INET)
+    target_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    old_values: Mapped[dict | None] = mapped_column(JSON)
+    new_values: Mapped[dict | None] = mapped_column(JSON)
+    ip_address: Mapped[str | None] = mapped_column(String(45))
     user_agent: Mapped[str | None] = mapped_column(Text)
 
     lodge: Mapped["Lodge"] = relationship(back_populates="audit_logs")

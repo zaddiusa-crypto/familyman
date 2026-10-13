@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -109,7 +109,7 @@ class ChatService:
         ).where(
             Message.chat_id == chat_id,
             Message.is_deleted == False,
-            ~Message.deleted_for.contains([user_id])
+            Message.deleted_for.cast(String).not_like(f"%{user_id}%")
         ).order_by(Message.created_at.asc()).limit(limit).offset(offset)
 
         result = await self.db.execute(query)
@@ -180,8 +180,8 @@ class ChatService:
             )
         else:
             deleted_for = list(message.deleted_for)
-            if user_id not in deleted_for:
-                deleted_for.append(user_id)
+            if str(user_id) not in deleted_for:
+                deleted_for.append(str(user_id))
             await self.db.execute(
                 update(Message)
                 .where(Message.id == message_id)

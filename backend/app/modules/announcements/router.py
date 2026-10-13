@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,8 +29,8 @@ async def list_announcements(
     if current_user.role.value == "member":
         query = query.where(
             or_(
-                Announcement.target_roles.contains(["member"]),
-                Announcement.target_roles.contains(["all"]),
+                Announcement.target_roles.cast(String).like("%member%"),
+                Announcement.target_roles.cast(String).like("%all%"),
             )
         )
 

@@ -112,7 +112,7 @@ async def get_admin_stats(
     fcm_tokens = await db.execute(
         select(func.count(User.id)).where(
             User.lodge_id == current_user.lodge_id,
-            func.array_length(User.fcm_tokens, 1) > 0
+            func.json_array_length(User.fcm_tokens) > 0
         )
     )
     fcm_tokens = fcm_tokens.scalar()

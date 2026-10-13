@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -138,7 +138,7 @@ async def get_messages(
         ).where(
             Message.chat_id == UUID(chat_id),
             Message.is_deleted == False,
-            ~Message.deleted_for.contains([current_user.id])
+            Message.deleted_for.cast(String).not_like(f"%{current_user.id}%")
         ).order_by(Message.created_at.asc()).limit(limit).offset(offset)
     )
     messages = result.scalars().all()
@@ -328,8 +328,8 @@ async def delete_message(
         message.is_deleted = True
     else:
         deleted_for = list(message.deleted_for)
-        if current_user.id not in message.deleted_for:
-            message.deleted_for = list(message.deleted_for) + [current_user.id]
+        if str(current_user.id) not in deleted_for:
+            message.deleted_for = deleted_for + [str(current_user.id)]
 
     await db.commit()
     return {"message": "Message deleted"}
