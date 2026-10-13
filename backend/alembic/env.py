@@ -36,6 +36,14 @@ def build_database_url(database_url: str):
     new_parsed = parsed._replace(query=query_string)
     url_without_ssl = parsed._replace(query=query_string).geturl()
 
+    # Force the asyncpg driver (bare postgresql:// would select psycopg)
+    if url_without_ssl.startswith("postgresql+asyncpg://"):
+        pass
+    elif url_without_ssl.startswith("postgresql://"):
+        url_without_ssl = "postgresql+asyncpg://" + url_without_ssl[len("postgresql://"):]
+    elif url_without_ssl.startswith("postgres://"):
+        url_without_ssl = "postgresql+asyncpg://" + url_without_ssl[len("postgres://"):]
+
     return url_without_ssl
 
 
@@ -46,7 +54,11 @@ def get_ssl_context(database_url: str):
     sslmode = query_params.get("sslmode", [None])[0]
 
     if sslmode not in ("require", "verify-ca", "verify-full"):
-        return None
+        # Default to TLS for remote managed Postgres (Supabase / Render).
+        if sslmode is None and parsed.hostname and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+            sslmode = "require"
+        else:
+            return None
 
     ssl_context = ssl.create_default_context()
     if sslmode == "verify-full":
@@ -116,12 +128,13 @@ async def run_async_migrations() -> None:
     connect_args = {}
     if ssl_context:
         connect_args["ssl"] = ssl_context
+    connect_args["statement_cache_size"] = 0
 
     # Create engine with SSL context via connect_args
     connectable = create_async_engine(
         build_database_url(raw_database_url),
         poolclass=pool.NullPool,
-        connect_args={"ssl": ssl_context} if ssl_context else {},
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:

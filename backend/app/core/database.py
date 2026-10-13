@@ -62,7 +62,17 @@ def create_engine_with_ssl(database_url: str):
             "in Render dashboard with a valid PostgreSQL connection string."
         )
 
-    if not database_url.startswith(("postgresql://", "postgresql+asyncpg://")):
+    # Force the asyncpg driver. A bare "postgresql://" (or legacy "postgres://")
+    # URL would otherwise make SQLAlchemy select the psycopg/psycopg2 driver,
+    # which is not installed.
+    if database_url.startswith("postgresql+asyncpg://"):
+        pass
+    elif database_url.startswith("postgresql://"):
+        database_url = "postgresql+asyncpg://" + database_url[len("postgresql://"):]
+    elif database_url.startswith("postgres://"):
+        database_url = "postgresql+asyncpg://" + database_url[len("postgres://"):]
+
+    if not database_url.startswith(("postgresql+asyncpg://", "postgresql://")):
         raise ValueError("DATABASE_URL must start with postgresql:// or postgresql+asyncpg://")
 
     # Parse URL manually to handle postgresql+asyncpg driver
@@ -91,6 +101,12 @@ def create_engine_with_ssl(database_url: str):
         else:  # require
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
+    elif parsed.hostname and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+        # Remote managed Postgres (Supabase / Render) requires TLS even when
+        # sslmode is omitted from the connection string.
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
 
     # Rebuild query string without sslmode
     new_query = {k: v[0] if len(v) == 1 else v for k, v in query_params.items()}
@@ -121,6 +137,9 @@ def create_engine_with_ssl(database_url: str):
     connect_args = {}
     if ssl_context:
         connect_args["ssl"] = ssl_context
+    # Disable asyncpg's prepared-statement cache so connections work through
+    # PgBouncer-based poolers (Supabase / Render) in transaction mode.
+    connect_args["statement_cache_size"] = 0
 
     return create_async_engine(
         url_without_ssl,
