@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: familyman
+      POSTGRES_USER: familyman
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-familyman_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familyman -d familyman"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://familyman:familyman_dev@postgres:5432/familyman
+      REDIS_URL: redis://redis:6379/0
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID}
+      FCM_VAPID_PUBLIC_KEY: ${FCM_VAPID_PUBLIC_KEY}
+      FCM_VAPID_PRIVATE_KEY: ${FCM_VAPID_PRIVATE_KEY}
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://familyman:familyman_dev@postgres:5432/familyman
+      REDIS_URL: redis://redis:6379/0
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID}
+      FCM_VAPID_PUBLIC_KEY: ${FCM_VAPID_PUBLIC_KEY}
+      FCM_VAPID_PRIVATE_KEY: ${FCM_VAPID_PRIVATE_KEY}
+      DEBUG: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python -m app.workers.fcm_dispatcher
+
+  telegram-bot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://familyman:familyman_dev@postgres:5432/familyman
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      DEBUG: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python -m app.workers.telegram_dispatcher
+
+volumes:
+  postgres_data:
+  redis_data:
