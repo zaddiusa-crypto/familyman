@@ -16,6 +16,9 @@ from app.core.models import Base
 
 config = context.config
 
+# Disable interpolation BEFORE any config operations to avoid % interpolation issues
+config._interpolation = None
+
 
 def build_database_url(database_url: str):
     """Build database URL with sslmode removed from query string."""
